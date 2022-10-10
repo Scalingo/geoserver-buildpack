@@ -19,13 +19,11 @@ env_dir="${3}"
 #
 #   - GEOSERVER_CONFIG_SCRIPT
 #         Path to the file containing the configuration script.
-#         MUST be relative to your project directory.
-#         Defaults to `configure-geoserver.sh`
+#         Defaults to `/app/configure-geoserver.sh`
 #
 #   - GEOSERVER_DATA_DIR
 #         Path to the directory where GeoServer stores its config files.
-#         MUST be relative to your project directory.
-#         Defaults to `geoserver-data`
+#         Defaults to `/app/geoserver-data`
 #
 #   - JAVA_VERSION
 #         Version of JRE to install and use.
@@ -44,7 +42,7 @@ geoserver_data_dir="${GEOSERVER_DATA_DIR:-/app/geoserver-data}"
 config_script="${geoserver_config_script//\/app/$build_dir}"
 data_dir="${geoserver_data_dir//\/app/$build_dir}"
 
-java_version="${JAVA_VERSION:-11}"
+java_version="${JAVA_VERSION:-17}"
 webapp_runner_version="${JAVA_WEBAPP_RUNNER_VERSION:-9.0.52.1}"
 
 printf -v geoserver_zip "%s/geoserver-%s.zip" "${cache_dir}" "${geoserver_version}"
