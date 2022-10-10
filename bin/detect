@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo "GeoServer" && exit 0
