@@ -45,5 +45,81 @@ restart the app.
 
 To avoid this, you will have to provide a `configure-geoserver.sh` script at
 the root of your project and make API calls. These API calls should create the
-workspace(s), the datastore(s), etc.
+workspace(s), the datastore(s), etc (see [examples](#examples) below).
 
+### Examples
+
+To create a workspace called `my-workspace`, create `geoserver/workspace.json`
+as follow:
+
+```json
+{
+    "workspace": {
+        "name": "my-workspace"
+    }
+}
+```
+
+Then, add the following lines in your `configure-geoserver.sh` script:
+
+```bash
+curl \
+    --user admin:geoserver \
+    --request "POST" \
+    --header 'Content-Type: application/json' \
+    --data @geoserver/workspace.json \
+    "127.0.0.1:4231/rest/workspaces"
+```
+
+To create a *PostGIS* datastore called `my-datastore` in our previously created
+`my-workspace` workspace, create `geoserver/datastore.json` as follow:
+
+```json
+{
+    "dataStore": {
+        "name": "my-datastore",
+        "connectionParameters": {
+            "entry": [
+                {
+                    "@key": "host",
+                    "$": "my-db-host"
+                },
+                {
+                    "@key": "port",
+                    "$": "my-db-port"
+                },
+                {
+                    "@key": "database",
+                    "$": "my-db-name"
+                },
+                {
+                    "@key": "user",
+                    "$": "my-db-user"
+                },
+                {
+                    "@key": "passwd",
+                    "$": "my-db-password"
+                },
+                {
+                    "@key": "dbtype",
+                    "$": "postgis"
+                }
+            ]
+        }
+    }
+}
+```
+
+Then, add the following lines in your `configure-geoserver.sh` script:
+
+```bash
+curl \
+    --user admin:geoserver \
+    --request "POST" \
+    --header 'Content-Type: application/json' \
+    --data @geoserver/datastore.json \
+    "127.0.0.1:4231/rest/workspaces/my-workspace/datastores"
+```
+
+The complete API documentation, as long as examples, can be found in the
+[GeoServer API documentation](https://docs.geoserver.org/latest/en/user/rest/index.html#api).
