@@ -1,0 +1,40 @@
+{
+    "dataStore": {
+        "name": "<%= ENV['GEOSERVER_DATASTORE_NAME'] %>",
+        "description": "<%= ENV['GEOSERVER_DATASTORE_DESCRIPTION'] %>",
+        "type": "PostGIS",
+        "enabled": true,
+        "workspace": {
+            "name": "<%= ENV['GEOSERVER_WORKSPACE_NAME'] %>",
+            "href": ""
+        },
+        "connectionParameters": {
+            "entry": [
+                {
+                    "@key": "dbtype",
+                    "$": "postgis"
+                },
+                {
+                    "@key": "host",
+                    "$": "<%= ENV['DB_HOST'] %>"
+                },
+                {
+                    "@key": "port",
+                    "$": <%= ENV['DB_PORT'] %>
+                },
+                {
+                    "@key": "database",
+                    "$": "<%= ENV['DB_NAME'] %>"
+                },
+                {
+                    "@key": "user",
+                    "$": "<%= ENV['DB_USER'] %>"
+                },
+                {
+                    "@key": "passwd",
+                    "$": "<%= ENV['DB_PASS'] %>"
+                }
+            ]
+        }
+    }
+}

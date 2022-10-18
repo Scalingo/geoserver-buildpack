@@ -1,79 +1,67 @@
 #!/usr/bin/env bash
 
-if [ -n "${BUILDPACK_DEBUG}" ]
-then
-    set -ex
-fi
-
 build_dir="${1}"
 cache_dir="${2}"
-env_dir="${3}"
+# env_dir="${3}"
+
+base_dir="$( cd -P "$( dirname "$0" )" && pwd )"
+buildpack_dir="$( readlink -f "${base_dir}/.." )"
+
+set -eo pipefail
+
+if [ -n "${BUILDPACK_DEBUG:-}" ]
+then
+    set -x
+fi
 
 
-#
-# Uses the following environment variables:
-#
-#   - GEOSERVER_VERSION
-#         Version of GeoServer to install.
-#         Defaults to 2.21.1.
-#
-#   - GEOSERVER_CONFIG_SCRIPT
-#         Path to the file containing the configuration script.
-#         Defaults to `/app/configure-geoserver.sh`
-#
-#   - GEOSERVER_DATA_DIR
-#         Path to the directory where GeoServer stores its config files.
-#         Defaults to `/app/geoserver-data`
-#
-#   - JAVA_VERSION
-#         Version of JRE to install and use.
-#         Defaults to 17.
-#
-#   - JAVA_WEBAPP_RUNNER_VERSION
-#         Version of webapp runner to install and use.
-#         Defaults to 9.0.52.1.
-#
 
+GEOSERVER_DATASTORE_DESCRIPTION="${GEOSERVER_DATASTORE_DESCRIPTION:-''}"
+export GEOSERVER_DATASTORE_DESCRIPTION
 
 geoserver_version="${GEOSERVER_VERSION:-2.21.1}"
 geoserver_config_script="${GEOSERVER_CONFIG_SCRIPT:-/app/configure-geoserver.sh}"
+geoserver_config_dir="${GEOSERVER_CONFIG_DIR:-${HOME}/geoserver}"
 geoserver_data_dir="${GEOSERVER_DATA_DIR:-/app/geoserver-data}"
 
 config_script="${geoserver_config_script//\/app/$build_dir}"
 data_dir="${geoserver_data_dir//\/app/$build_dir}"
 
-java_version="${JAVA_VERSION:-17}"
+java_version="${JAVA_VERSION:-11}"
 webapp_runner_version="${JAVA_WEBAPP_RUNNER_VERSION:-9.0.52.1}"
 
-printf -v geoserver_zip "%s/geoserver-%s.zip" "${cache_dir}" "${geoserver_version}"
+geoserver_zip="${cache_dir}/geoserver-${geoserver_version}.zip"
 
 
 
 # Retrieves GeoServer .war, either by fetching it from the cache or by
 # downloading it.
 #
-# get_geoserver <version> <cached_file>
+# Usage: get_geoserver <version> <cached_file>
 #
 get_geoserver() {
     local version
     local cached
     local url
-    local dl_url
 
     version="${1}"
     cached="${2}"
 
     if [ ! -f "${cached}" ]
     then
-        echo "Downloading GeoServer ${version}"
-        url="https://sourceforge.net/projects/geoserver/files/GeoServer/%s/geoserver-%s-war.zip"
+        echo "---> Downloading GeoServer ${version}"
 
-        printf -v dl_url "${url}" "${version}" "${version}"
+        url="https://sourceforge.net/projects/geoserver/files/GeoServer/${version}/geoserver-${version}-war.zip"
 
-        curl --retry 3 --silent --location "${dl_url}" \
-            --output "${cached}"
+        curl --location --silent --retry 6 --retry-connrefused --retry-delay 0 \
+            "${url}" \
+            --output "${cached}" \
+            || {
+                echo "Unable to download GeoServer ${version}. Aborting.";
+                exit 1;
+            }
     else
-        echo "Retrieving GeoServer ${version} from cache"
+        echo "---> Retrieving GeoServer ${version} from cache"
     fi
 }
 
@@ -85,24 +73,20 @@ get_geoserver() {
 run_geoserver() {
     local build_dir
     local port
-    local opts
 
     build_dir="${1}"
     port="${2}"
 
     #FIXME:
     # opts="-Xmx384m -Xss512k -XX:+UseCompressedOops"
-    # nohup java "${opts}" -jar ...
+    # java "${opts}" -jar ...
 
     # Starts the webserver in background (will be killed later)
-    nohup java -jar "${build_dir}/webapp-runner.jar" \
+    java -jar "${build_dir}/webapp-runner.jar" \
         --port "${port}" \
         "${build_dir}/geoserver.war" \
         > out.log 2>&1 &
-
-    echo ${!}
 }
-
 
 # Stops the process corresponding to the given PID.
 #
@@ -110,71 +94,201 @@ run_geoserver() {
 #
 stop_geoserver() {
     local pid
+    local waited
 
     pid="${1}"
+    waited=0
 
-    kill -SIGTERM ${pid}
+    set +e
 
-    sleep 30
+    kill -SIGTERM "${pid}"
 
-    if ps -p ${pid} > /dev/null
-    then
-        kill -SIGKILL ${pid}
-    fi
+    while [ ${waited} -lt 180 ]
+    do
+        sleep 1
+
+        kill -0 "${pid}" > /dev/null 2>&1 \
+            || break
+
+        ((waited++))
+    done
+
+    kill -0 "${pid}" > /dev/null 2>&1 \
+        && {
+            echo "!! Force-killing temporary GeoServer."
+            kill -SIGKILL "${pid}"
+            exit 1
+        }
+
+    set -e
 }
-
 
 # Installs Java and webapp_runner
 #
 # Usage: install_jre <build_dir> <java_version> <webapp_runner_version>
 #
 install_jre() {
-    local base_url
     local jvm_url
     local runner_url
-    local runner_pkg
 
     local build_dir
     local jre_version
     local runner_version
 
+    local cached_jvm_common
+    local cached_runner
+    local tmp_dir
+
     build_dir="${1}"
     jre_version="${2}"
     runner_version="${3}"
 
-    base_url="https://buildpacks-repository.s3.eu-central-1.amazonaws.com/%s"
+    jvm_url="https://buildpacks-repository.s3.eu-central-1.amazonaws.com/jvm-common.tar.xz"
+    runner_url="https://buildpacks-repository.s3.eu-central-1.amazonaws.com/webapp-runner-${runner_version}.jar"
 
-    printf -v runner_pkg "webapp-runner-%s.jar" "${runner_version}"
+    # Install JVM common tools:
+    cached_jvm_common="${cache_dir}/jvm-common.tar.xz"
 
-    printf -v jvm_url "${base_url}" "jvm-common.tar.xz"
-    printf -v runner_url "${base_url}" "${runner_pkg}"
+    if [ ! -f "${cached_jvm_common}" ]
+    then
+        curl --location --silent --retry 6 --retry-connrefused --retry-delay 0 \
+            "${jvm_url}" \
+            --output "${cached_jvm_common}"
+    fi
 
-    mkdir -p /tmp/jvm-common
+    tmp_dir=$( mktemp -d jvm-common-XXXXXX ) && {
+        tar --extract --xz --touch --strip-components=1 \
+            --file "${cached_jvm_common}" \
+            --directory "${tmp_dir}"
 
-    curl --retry 3 --silent --location "${jvm_url}" \
-        | tar xJm -C /tmp/jvm-common --strip-components=1
+        # Source utilities and functions:
+        source "${tmp_dir}/bin/util"
+        source "${tmp_dir}/bin/java"
 
-    # Source utilities and functions:
-    source /tmp/jvm-common/bin/util
-    source /tmp/jvm-common/bin/java
+        echo "java.runtime.version=${jre_version}" \
+            > "${build_dir}/system.properties"
 
-    echo "java.runtime.version=${jre_version}" \
-        > "${build_dir}/system.properties"
+        install_java_with_overlay "${build_dir}"
 
-    install_java_with_overlay "${build_dir}"
+        rm -Rf "${tmp_dir}"
+    }
 
     # Install Webapp Runner
-    curl --retry 3 --silent --location "${runner_url}" \
-        --output "${build_dir}/webapp-runner.jar"
+    cached_runner="${cache_dir}/webapp-runner-${runner_version}.jar"
+
+    if [ ! -f "${cached_runner}" ]
+    then
+        curl --location --silent --retry 6 --retry-connrefused --retry-delay 0 \
+            "${runner_url}" \
+            --output "${cached_runner}" \
+            || {
+                echo "Unable to download webapp runner ${runner_version}. Aborting."
+                exit 1
+            }
+    fi
+
+    cp "${cached_runner}" "${build_dir}/webapp-runner.jar"
+}
+
+# Prints out some environment variables.
+#
+# Usage: print_environment
+#
+print_environment() {
+    echo -e "     GEOSERVER_VERSION: ${geoserver_version}"
+    echo -e "     GEOSERVER_CONFIG_SCRIPT: ${geoserver_config_script}"
+    echo -e "     GEOSERVER_DATA_DIR: ${geoserver_data_dir}"
+    echo -e "     JAVA_VERSION: ${java_version}"
+    echo -e "     JAVA_WEBAPP_RUNNER_VERSION: ${webapp_runner_version}"
+}
+
+# Checks whether all required environment variables are set or not.
+#
+# Usage: check_environment
+#
+check_environment() {
+    local mandatory
+
+    mandatory=(
+        GEOSERVER_ADMIN_PASSWORD
+        GEOSERVER_WORKSPACE_NAME
+        GEOSERVER_DATASTORE_NAME
+    )
+
+    mandatory_is_ok=0
+
+    for m in "${mandatory[@]}"
+    do
+        if [ -z "${!m}" ]
+        then
+            echo "!! Setting the ${m} environment variable is mandatory." >&2
+            echo "Please set it and relaunch your deployment." >&2
+            mandatory_is_ok=1
+        fi
+    done
+
+    if [ ${mandatory_is_ok} -ne 0 ]
+    then
+        exit 1
+    fi
+}
+
+# Split the DB connexion string into multiple environment variables
+# so we can use them in the templates
+#
+# Usage: export_db_conn
+#
+export_db_conn() {
+    DB_HOST="$( echo "${SCALINGO_POSTGRESQL_URL}" \
+        | cut -d "@" -f2 | cut -d ":" -f1 )"
+
+    DB_USER="$( echo "${SCALINGO_POSTGRESQL_URL}" \
+        | cut -d "/" -f3 | cut -d ":" -f1 )"
+
+    DB_PORT="$( echo "${SCALINGO_POSTGRESQL_URL}" \
+        | cut -d ":" -f4 | cut -d "/" -f1 )"
+
+    DB_PASS="$( echo "${SCALINGO_POSTGRESQL_URL}" \
+        | cut -d "@" -f1 | cut -d ":" -f3 )"
+
+    DB_NAME="$( echo "${SCALINGO_POSTGRESQL_URL}" \
+        | cut -d "?" -f1 | cut -d "/" -f4 )"
+
+    export DB_HOST
+    export DB_USER
+    export DB_PORT
+    export DB_PASS
+    export DB_NAME
+}
+
+# Interpolates variables present in the given template.
+#
+# Usage: do_template <template_file>
+#
+do_template() {
+    local src
+    local dst
+
+    src="${1}"
+    # dst is the same as src, exept we remove the '.erb' suffix:
+    dst="${src%.erb}"
+
+    # Process the template:
+    erb "${src}" > "${dst}"
 }
 
 
 
-echo "Installing JRE ${java_version}"
+check_environment
+
+echo "---> Running with:"
+print_environment
+
+echo "---> Installing JRE ${java_version}"
 install_jre "${build_dir}" "${java_version}" "${webapp_runner_version}" \
     || {
-        echo "Unable to install JRE. Aborting.";
-        exit 1;
+        echo "Unable to install JRE. Aborting."
+        exit 1
     }
 
 
@@ -197,48 +311,84 @@ pushd "${build_dir}" > /dev/null \
 # Make sure GeoServer data directory exists:
 mkdir -p "${data_dir}"
 
-if [ -f "${config_script}" ]
+
+# Configure GeoServer:
+temp_port="4231"
+temp_host="http://localhost:${temp_port}"
+
+# Modify environment var since we are in the BUILD phase
+# Otherwise data put in `GEOSERVER_DATA_DIR` would be lost when the
+# container is put in production (`/app` will be overridden).
+export GEOSERVER_DATA_DIR="${data_dir}"
+
+run_geoserver "${build_dir}" "${temp_port}"
+geoserver_pid="${!}"
+
+if [ -n "${geoserver_pid}" ]
 then
-    temp_port=4231
+    echo "---> Started temporary GeoServer on ${temp_host} (pid: ${geoserver_pid})"
+    curl --silent --retry 6 --retry-connrefused --retry-delay 0 -4 \
+        "${temp_host}"
 
-    # Modify environment var since we are in the BUILD phase
-    # Otherwise data put in `GEOSERVER_DATA_DIR` would be lost when the
-    # container is put in production (`/app` will be overridden).
-    export GEOSERVER_DATA_DIR="${data_dir}"
+    echo "---> Processing configuration templates"
+    export_db_conn
 
-    echo "Starting temporary GeoServer"
-    geoserver_pid=$( run_geoserver "${build_dir}" "${temp_port}" )
+    while IFS= read -r -d '' file
+    do
+        do_template "${file}"
+    done < <( find "${buildpack_dir}/config" -name "*.erb" -print0 )
 
-    if [ ! -z ${geoserver_pid} ]
+    while IFS= read -r -d '' file
+    do
+        do_template "${file}"
+    done < <( find "${geoserver_config_dir}" -name "*.erb" -print0 )
+
+
+    # Configuring GeoServer:
+    default_user="admin"
+    default_pass="geoserver"
+
+    curl_opts=(
+        "--silent"
+        "--fail"
+        "--show-error"
+        "-4"
+    )
+
+    # Import Scalingo's base configuration:
+    source "${buildpack_dir}/bin/001-config.sh"
+
+    # Import customer's configuration:
+    if [ -f "${config_script}" ]
     then
-        # echo "Listening on 4231, pid is ${geoserver_pid}"
-
-        sleep 10
-
-        curl --retry 10 --silent "http://localhost:${temp_port}" \
-            && {
-                echo "Importing configuration";
-                source "${config_script}";
-
-                echo "Stopping temporary GeoServer";
-                stop_geoserver "${geoserver_pid}";
-            } \
-            || {
-                echo "Unable to reach temporary GeoServer. Aborting.";
-                exit 1;
-            }
-    else
-        echo "Unable to start temporary GeoServer. Aborting."
+        echo "---> Importing configuration"
+        source "${config_script}"
     fi
 
-    # Sets `GEOSERVER_DATA_DIR` back to its initial value.
-    export GEOSERVER_DATA_DIR="${geoserver_data_dir}"
+    # Enforce some configuration:
+    source "${buildpack_dir}/bin/002-config.sh"
+
+
+    # Stop the temporary GeoServer:
+    echo "---> Stopping temporary GeoServer"
+    stop_geoserver "${geoserver_pid}"
+else
+    echo "Unable to start temporary GeoServer. Aborting."
+    exit 1
 fi
 
+# Leaving the BUILD phase, setting `GEOSERVER_DATA_DIR` back to its
+# initial value.
+export GEOSERVER_DATA_DIR="${geoserver_data_dir}"
+
+# Make sure GEOSERVER_DATA_DIR is exported when RUNning:
+cat > ".profile.d/geoserver.sh" <<SH
+export GEOSERVER_DATA_DIR=${geoserver_data_dir}
+SH
 
 
 # Cleanup:
-echo "Cleaning up"
+echo "---> Cleaning up"
 rm -Rf "${cache_dir}/geoserver-${geoserver_version}"
 
 exit 0
