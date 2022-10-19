@@ -45,36 +45,35 @@ data_dir="${geoserver_data_dir//\/app/$build_dir}"
 java_version="${JAVA_VERSION:-17}"
 webapp_runner_version="${JAVA_WEBAPP_RUNNER_VERSION:-9.0.52.1}"
 
-printf -v geoserver_zip "%s/geoserver-%s.zip" "${cache_dir}" "${geoserver_version}"
-
-
-
 # Retrieves GeoServer .war, either by fetching it from the cache or by
-# downloading it.
+# downloading it. Ensure geoserver.war is present in the build dir
 #
-# get_geoserver <version> <cached_file>
+# get_geoserver <build_dir> <cache_dir> <version>
 #
 get_geoserver() {
-    local version
-    local cached
-    local url
-    local dl_url
+    local build_dir=$1
+    local cache_dir=$2
+    local version=$3
 
-    version="${1}"
-    cached="${2}"
+    local archive_name="geoserver-${version}-war.zip"
+    local url="https://sourceforge.net/projects/geoserver/files/GeoServer/${version}/${archive_name}"
+    local zip_cache_file="${cache_dir}/geoserver-${version}.zip"
 
-    if [ ! -f "${cached}" ]
-    then
+    if [ ! -f "${zip_cache_file}" ] ; then
         echo "Downloading GeoServer ${version}"
-        url="https://sourceforge.net/projects/geoserver/files/GeoServer/%s/geoserver-%s-war.zip"
-
-        printf -v dl_url "${url}" "${version}" "${version}"
-
-        curl --retry 3 --silent --location "${dl_url}" \
-            --output "${cached}"
+        curl --retry 3 --silent --location "${url}" \
+            --output "${zip_cache_file}"
     else
         echo "Retrieving GeoServer ${version} from cache"
     fi
+
+    # Either we got geoserver zip from the cache of from the project page
+    unzip -qq -o "${zip_cache_file}" -d "${build_dir}"
+
+    # Ensure we have a working link to current war version in $build_dir/geoserver.war
+    pushd "${build_dir}" > /dev/null \
+        && ln -sfn "geoserver-${version}/geoserver-${version}.war" "geoserver.war" \
+        && popd > /dev/null
 }
 
 # Starts GeoServer locally so we can inject the configuration.
@@ -178,21 +177,7 @@ install_jre "${build_dir}" "${java_version}" "${webapp_runner_version}" \
     }
 
 
-get_geoserver "${geoserver_version}" "${geoserver_zip}"
-
-
-unzip -qq -o "${geoserver_zip}" \
-    -d "${cache_dir}/geoserver-${geoserver_version}"
-
-
-# Move geoserver.war to $build_dir:
-mv "${cache_dir}/geoserver-${geoserver_version}/geoserver.war" \
-    "${build_dir}/geoserver-${geoserver_version}.war"
-
-# Link versioned file:
-pushd "${build_dir}" > /dev/null \
-    && ln -sfn "geoserver-${geoserver_version}.war" "geoserver.war" \
-    && popd > /dev/null
+get_geoserver "${build_dir}" "${cache_dir}" "${geoserver_version}"
 
 # Make sure GeoServer data directory exists:
 mkdir -p "${data_dir}"
