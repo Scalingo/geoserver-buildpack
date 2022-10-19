@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
+set -eo pipefail
+
 if [ -n "${BUILDPACK_DEBUG}" ]
 then
-    set -ex
+    set -x
 fi
 
 build_dir="${1}"
@@ -68,11 +70,11 @@ get_geoserver() {
     fi
 
     # Either we got geoserver zip from the cache of from the project page
-    unzip -qq -o "${zip_cache_file}" -d "${build_dir}"
+    unzip -qq -o "${zip_cache_file}" -d "${build_dir}/geoserver-${version}"
 
     # Ensure we have a working link to current war version in $build_dir/geoserver.war
     pushd "${build_dir}" > /dev/null \
-        && ln -sfn "geoserver-${version}/geoserver-${version}.war" "geoserver.war" \
+        && ln -sfn "geoserver-${version}/geoserver.war" "geoserver.war" \
         && popd > /dev/null
 }
 
@@ -219,11 +221,5 @@ then
     # Sets `GEOSERVER_DATA_DIR` back to its initial value.
     export GEOSERVER_DATA_DIR="${geoserver_data_dir}"
 fi
-
-
-
-# Cleanup:
-echo "Cleaning up"
-rm -Rf "${cache_dir}/geoserver-${geoserver_version}"
 
 exit 0
