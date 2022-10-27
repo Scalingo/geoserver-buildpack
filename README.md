@@ -120,7 +120,7 @@ Defaults to `9.0.52.1`
 
 ### GeoServer configuration does not persist
 
-> **Danger**
+> **Warning**\
 > **GeoServer stores its configuration on a regular filesystem, which
 is not supported by Scalingo. GeoServer's configuration will be lost each time
 you deploy or restart the app.**
@@ -134,7 +134,7 @@ the API calls are available when the application enters the *`RUN`* phase.
 Ideally, these API calls should create additional workspace(s), datastore(s),
 etc (see [Configuration examples](#configuration-examples) below).
 
-> **Warning**
+> **Warning**\
 > This also means you will have to trigger a new deployment of your application
 each time the configuration changes.**
 
