@@ -31,7 +31,7 @@ The following instructions should get you started:
 
 ```bash
 % scalingo --app my-geoserver env-set BUILDPACK_URL="https://github.com/Scalingo/geoserver-buildpack.git"
-% scalingo --app my-geoserver env-set GEOSERVER_ADMIN_PASSWORD="S0_s3cret"
+% scalingo --app my-geoserver env-set GEOSERVER_ADMIN_PASSWORD="s0_s3cret"
 % scalingo --app my-geoserver env-set GEOSERVER_WORKSPACE_NAME="my-workspace"
 % scalingo --app my-geoserver env-set GEOSERVER_DATASTORE_NAME="my-datastore"
 ```
@@ -53,11 +53,11 @@ During the *`BUILD`* phase, this buildpack:
 2. Installs the Java Runtime Environment.
 3. Installs GeoServer.
 4. Runs a temporary GeoServer on `localhost:4231`.
-5. Setup a few things, such as the admin account password, the
-   `GEOSERVER_WORKSPACE_NAME` workspace, and the `GEOSERVER_DATASTORE_NAME`
-   datastore.
+5. Setup a few things, such as the `GEOSERVER_WORKSPACE_NAME` workspace, and
+   the `GEOSERVER_DATASTORE_NAME` datastore.
 6. Executes the given configuration file, if any.
-7. Enforces some configuration, such as disk quota and logging.
+7. Enforces some configuration, such as disk quota, logging and *admin* account
+   password.
 6. Stops the temporary GeoServer.
 7. Validates the build.
 
@@ -108,7 +108,7 @@ Defaults to `/app/geoserver-data`
 #### `JAVA_VERSION`
 
 Java Runtime Environment to use to run GeoServer.\
-Defaults to `17`
+Defaults to `11`
 
 #### `JAVA_WEBAPP_RUNNER_VERSION`
 
@@ -120,7 +120,8 @@ Defaults to `9.0.52.1`
 
 ### GeoServer configuration does not persist
 
-> :warning: **GeoServer stores its configuration on a regular filesystem, which
+> **Danger**
+> **GeoServer stores its configuration on a regular filesystem, which
 is not supported by Scalingo. GeoServer's configuration will be lost each time
 you deploy or restart the app.**
 
@@ -133,7 +134,8 @@ the API calls are available when the application enters the *`RUN`* phase.
 Ideally, these API calls should create additional workspace(s), datastore(s),
 etc (see [Configuration examples](#configuration-examples) below).
 
-**This also means you will have to trigger a new deployment of your application
+> **Warning**
+> This also means you will have to trigger a new deployment of your application
 each time the configuration changes.**
 
 ### GeoServer Web Cache limit
