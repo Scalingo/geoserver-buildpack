@@ -340,7 +340,7 @@ then
     )
 
     # Import Scalingo's base configuration:
-    source "${buildpack_dir}/bin/001-config.sh"
+    source "${buildpack_dir}/bin/init-workspace-datastore.sh"
 
     # Import customer's configuration:
     if [ -f "${config_script}" ]
@@ -350,7 +350,7 @@ then
     fi
 
     # Enforce some configuration:
-    source "${buildpack_dir}/bin/002-config.sh"
+    source "${buildpack_dir}/bin/config-logging-caching.sh"
 
 
     # Stop the temporary GeoServer:
