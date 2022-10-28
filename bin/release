@@ -3,9 +3,6 @@
 
 cat <<EOF
 ---
-config_vars:
-  JAVA_OPTS: -Xmx384m -Xss512k -XX:+UseCompressedOops
+default_process_types:
+  web: \$HOME/bin/startup.sh
 EOF
-
-echo "default_process_types:"
-echo "  web: java \$JAVA_OPTS -jar ./webapp-runner.jar --port \$PORT ./*.war"

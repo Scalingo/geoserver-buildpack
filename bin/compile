@@ -362,6 +362,11 @@ else
 fi
 
 
+# Copy startup script:
+mkdir -p "${build_dir}/bin"
+cp "${buildpack_dir}/bin/startup.sh" "${build_dir}/bin/"
+
+
 # Leaving the BUILD phase, setting `GEOSERVER_DATA_DIR` back to its
 # initial value.
 export GEOSERVER_DATA_DIR="${geoserver_data_dir}"
