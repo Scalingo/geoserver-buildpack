@@ -9,7 +9,6 @@ fi
 
 build_dir="${1}"
 cache_dir="${2}"
-# env_dir="${3}"
 
 base_dir="$( cd -P "$( dirname "$0" )" && pwd )"
 buildpack_dir="$( readlink -f "${base_dir}/.." )"
@@ -75,12 +74,8 @@ run_geoserver() {
     build_dir="${1}"
     port="${2}"
 
-    #FIXME:
-    # opts="-Xmx384m -Xss512k -XX:+UseCompressedOops"
-    # java "${opts}" -jar ...
-
     # Starts the webserver in background (will be killed later)
-    java -jar "${build_dir}/webapp-runner.jar" \
+    java ${JAVA_OPTS:-} -jar "${build_dir}/webapp-runner.jar" \
         --port "${port}" \
         "${build_dir}/geoserver.war" \
         > out.log 2>&1 &
@@ -113,8 +108,9 @@ stop_geoserver() {
 
     kill -0 "${pid}" > /dev/null 2>&1 \
         && {
-            echo "!! Force-killing temporary GeoServer."
             kill -SIGKILL "${pid}"
+            echo "!! Temporary GeoServer was not responding and has been killed."
+            echo "!! Stopping build as this may have introduced data corruption."
             exit 1
         }
 
@@ -206,6 +202,7 @@ print_environment() {
 #
 check_environment() {
     local mandatory
+    local mandatory_is_ok
 
     mandatory=(
         GEOSERVER_ADMIN_PASSWORD
@@ -220,10 +217,16 @@ check_environment() {
         if [ -z "${!m}" ]
         then
             echo "!! Setting the ${m} environment variable is mandatory." >&2
-            echo "Please set it and relaunch your deployment." >&2
+            echo "!! Please set it and relaunch your deployment." >&2
             mandatory_is_ok=1
         fi
     done
+
+    if [ -z "${SCALINGO_POSTGRESQL_URL}" ]
+    then
+        echo "!! This buildpack requires a PostgreSQL database addon." >&2
+        mandatory_is_ok=1
+    fi
 
     if [ ${mandatory_is_ok} -ne 0 ]
     then
@@ -285,7 +288,7 @@ print_environment
 echo "---> Installing JRE ${java_version}"
 install_jre "${build_dir}" "${java_version}" "${webapp_runner_version}" \
     || {
-        echo "Unable to install JRE. Aborting."
+        echo "!! Unable to install JRE. Aborting." >&2
         exit 1
     }
 
@@ -357,7 +360,7 @@ then
     echo "---> Stopping temporary GeoServer"
     stop_geoserver "${geoserver_pid}"
 else
-    echo "Unable to start temporary GeoServer. Aborting."
+    echo "!! Unable to start temporary GeoServer. Aborting." >&2
     exit 1
 fi
 
