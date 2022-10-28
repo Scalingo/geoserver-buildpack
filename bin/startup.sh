@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 
-jvm_flags="${JAVA_OPTS:-''}"
-
 if [ -z "${GEOSERVER_ENABLE_WEBUI}" ]
 then
     # Disable the Web UI unless GEOSERVER_ENABLE_WEBUI is set
-    jvm_flags="-DGEOSERVER_CONSOLE_DISABLED=true ${jvm_flags}"
+    JAVA_OPTS="-DGEOSERVER_CONSOLE_DISABLED=true ${JAVA_OPTS:-''}"
+    export JAVA_OPTS
 fi
 
-java ${jvm_flags} \
+java ${JAVA_OPTS} \
     -jar "${HOME}/webapp-runner.jar" \
     --port "${PORT}" \
     "${HOME}/geoserver.war"
