@@ -2,6 +2,20 @@
 
 This buildpack downloads and installs GeoServer into a Scalingo app image.
 
+**Disclaimer**:
+
+> This buildpack has been tested on Scalingo with GeoServer 2.21.1 only.
+>
+> It has a few [requirements](#requirements), [default settings](#default-settings)
+and [known limitations](#known-limitations) that you should be aware of.
+>
+> It is highly recommended to setup your GeoServer following state-of-the-art
+recommandations, such as the ones that can be found in the
+[GeoCat documentation](https://www.geocat.net/docs/geoserver-enterprise/2022/welcome/index.html).
+>
+> It is also highly recommended to follow the best practicess and security
+advises that can be found in the [GeoCat documentation](https://www.geocat.net/docs/geoserver-enterprise/2020.5/security/index.html).
+
 ## Usage
 
 The following instructions should get you started:
@@ -48,7 +62,7 @@ The following instructions should get you started:
 
 During the *`BUILD`* phase, this buildpack:
 
-1. Downloads GeoServer if necessary (when the requested version is not in\
+1. Downloads GeoServer if necessary (when the requested version is not in
    cache).
 2. Installs the Java Runtime Environment.
 3. Installs GeoServer.
@@ -90,6 +104,19 @@ This datastore will be linked to the PostgreSQL addon.\
 Description of the first datastore to create.\
 Defaults to `""` (empty).
 
+#### `GEOSERVER_ENABLE_WEBUI`
+
+When set, enables GeoServer's web administration interface.\
+A **restart** of the application is required for the change to be effective.\
+Defaults to being unset (Web UI is disabled by default)
+
+#### `GEOSERVER_ENABLE_LOGIN_AUTOCOMPLETE`
+
+When set, enables login auto-complete on GeoServer's web administration
+interface.\
+A **restart** of the application is required for the change to be effective.\
+Defaults to being unset (auto-complete is disabled by default)
+
 #### `GEOSERVER_VERSION`
 
 Version of GeoServer to install.\
@@ -116,6 +143,64 @@ Version of webapp runner to install and use.\
 Defaults to `9.0.52.1`
 
 
+## Requirements
+
+This buildpack requires a PostgreSQL database addon with the PostGIS extension
+enabled. See [Managing PostgreSQL Extensions](https://doc.scalingo.com/databases/postgresql/extensions)
+for further details.
+
+
+## Default settings
+
+This buildpack makes sure a few sane defaults are set:
+
+### Workspace
+
+The [`GEOSERVER_WORKSPACE_NAME`](#GEOSERVER_WORKSPACE_NAME) workspace is
+created and enabled.
+
+Setting the `GEOSERVER_WORKSPACE_NAME` environment variable is mandatory.
+
+### Datastore
+
+The [`GEOSERVER_DATASTORE_NAME`](#GEOSERVER_DATASTORE_NAME) datastore is
+created and linked to the PostGIS addon of your application.
+
+Setting the `GEOSERVER_DATASTORE_NAME` environment variable is mandatory.
+
+### GeoServer logging
+
+Logging is configured to output to `stdout`. This makes sure Scalingo can
+handle the logs and present them in the dashboard.
+
+This is a platform requirement and can't be bypassed.
+
+### GeoWebCache Limit
+
+The GeoWebCache disk space is limited to 5 GiB.
+
+This is a platform requirement and can't be bypassed.
+
+### GeoWebCache Tile Removal Policy
+
+The GeoWebCache tile removal policy is set to `Least Recently Used`, which
+means that tiles are removed from the cache based on date of last access.
+
+### GeoServer Web Administration Interface
+
+The web administration interface is disabled by default.
+
+It can be enabled by setting [`GEOSERVER_ENABLE_WEBUI`](#GEOSERVER_ENABLE_WEBUI),
+although **we don't recommend it**.
+
+### Login Auto-Complete
+
+The login form auto-complete is disabled by default.
+
+It can be enabled by setting [`GEOSERVER_ENABLE_LOGIN_AUTOCOMPLETE`](#GEOSERVER_ENABLE_LOGIN_AUTOCOMPLETE),
+although **we don't recommend it**.
+
+
 ## Known limitations
 
 ### GeoServer configuration does not persist
@@ -131,16 +216,19 @@ root of your project and make API calls. This script is executed during the
 configuration **should not** be modified. The configuration files resulting of
 the API calls are available when the application enters the *`RUN`* phase.
 
-Ideally, these API calls should create additional workspace(s), datastore(s),
-etc (see [Configuration examples](#configuration-examples) below).
+Ideally, these API calls should create styles, layers, or even additional
+workspace(s), datastore(s),... (see [Configuration examples](#configuration-examples)
+below).
 
 > **Warning**\
-> **This also means you will have to trigger a new deployment of your application
-each time the configuration changes.**
+> **You have to make sure the configuration deployed during the *`BUILD`* phase
+will persist when entering the *`RUN`* phase.** Our experience show that it's
+not always the case. Calling the GeoWebCache API, for example, won't work.
 
-### GeoServer Web Cache limit
-
-The GeoServer Web Cache is limited to 1 GiB.
+> **Warning**\
+> **You have to trigger a new deployment of your application each time the
+configuration changes or if the database settings change** (the latter
+remaining very unlikely to happen).
 
 
 ## Configuration examples
@@ -295,7 +383,4 @@ curl \
 
 The complete API documentation, as long as examples, can be found in the
 [GeoServer API documentation](https://docs.geoserver.org/latest/en/user/rest/index.html#api).
-
-Security best practices and advises can be found in the
-[GeoCat documentation](https://www.geocat.net/docs/geoserver-enterprise/2020.5/security/index.html).
 
