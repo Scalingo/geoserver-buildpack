@@ -92,72 +92,39 @@ stop_geoserver() {
 
 # Installs Java and webapp_runner
 #
-# Usage: install_webapp_runner <build_dir> <cache_dir> <java_version> <webapp_runner_version>
+# Usage: install_java_webapp_runner <build_dir> <cache_dir> <env_dir>
 #
-install_webapp_runner() {
-    local jvm_url
-    local runner_url
+install_java_webapp_runner() {
+    local b_dir
+    local c_dir
+    local e_dir
 
-    local build_d
-    local cache_d
+    local java_war_buildpack_url
+    local java_war_buildpack_dir
 
-    local tmp_d
-    local jre_version
-    local runner_version
+    b_dir="${1}"
+    c_dir="${2}"
+    e_dir="${3}"
 
-    local cached_jvm_common
-    local cached_runner
+    java_war_buildpack_url="https://github.com/Scalingo/java-war-buildpack.git"
+    java_war_buildpack_dir="$( mktemp java_war_buildpack_XXXX )"
 
-    build_d="${1}"
-    cache_d="${2}"
-    jre_version="${3}"
-    runner_version="${4}"
+    # We only need a random name, let's remove the file:
+    rm "${java_war_buildpack_dir}"
 
-    jvm_url="https://buildpacks-repository.s3.eu-central-1.amazonaws.com/jvm-common.tar.xz"
-    runner_url="https://buildpacks-repository.s3.eu-central-1.amazonaws.com/webapp-runner-${runner_version}.jar"
+    # Clone the java-war-buildpack:
+    git clone --depth=1 "${java_war_buildpack_url}" "${java_war_buildpack_dir}"
 
-    # Install JVM common tools:
-    cached_jvm_common="${cache_d}/jvm-common.tar.xz"
+    # And call it:
+    "${java_war_buildpack_dir}/bin/compile" "${b_dir}" "${c_dir}" "${e_dir}"
 
-    if [ ! -f "${cached_jvm_common}" ]
-    then
-        curl --location --silent --retry 6 --retry-connrefused --retry-delay 0 \
-            "${jvm_url}" \
-            --output "${cached_jvm_common}"
+    # Cleanup:
+    rm -Rf "${java_war_buildpack_dir}"
+
+    # If the java-war-buildpack left an export file behind, let's source it:
+    if [ -e "${b_dir}/export" ]; then
+        source "${b_dir}/export"
     fi
-
-    tmp_d=$( mktemp -d jvm-common-XXXXXX ) && {
-        tar --extract --xz --touch --strip-components=1 \
-            --file "${cached_jvm_common}" \
-            --directory "${tmp_d}"
-
-        # Source utilities and functions:
-        source "${tmp_d}/bin/util"
-        source "${tmp_d}/bin/java"
-
-        echo "java.runtime.version=${jre_version}" \
-            > "${build_d}/system.properties"
-
-        install_java_with_overlay "${build_d}"
-
-        rm -Rf "${tmp_d}"
-    }
-
-    # Install Webapp Runner
-    cached_runner="${cache_d}/webapp-runner-${runner_version}.jar"
-
-    if [ ! -f "${cached_runner}" ]
-    then
-        curl --location --silent --retry 6 --retry-connrefused --retry-delay 0 \
-            "${runner_url}" \
-            --output "${cached_runner}" \
-            || {
-                echo "Unable to download webapp runner ${runner_version}. Aborting."
-                exit 1
-            }
-    fi
-
-    cp "${cached_runner}" "${build_d}/webapp-runner.jar"
 }
 
 
@@ -169,8 +136,8 @@ print_environment() {
     echo -e "     GEOSERVER_VERSION: ${geoserver_version}"
     echo -e "     GEOSERVER_CONFIG_SCRIPT: ${geoserver_config_script}"
     echo -e "     GEOSERVER_DATA_DIR: ${geoserver_data_dir}"
-    echo -e "     JAVA_VERSION: ${java_version}"
-    echo -e "     JAVA_WEBAPP_RUNNER_VERSION: ${webapp_runner_version}"
+    echo -e "     JAVA_VERSION: ${JAVA_VERSION}"
+    echo -e "     JAVA_WEBAPP_RUNNER_VERSION: ${JAVA_WEBAPP_RUNNER_VERSION}"
 }
 
 
@@ -398,7 +365,7 @@ create_datastore() {
 readonly -f get_geoserver
 readonly -f run_geoserver
 readonly -f stop_geoserver
-readonly -f install_webapp_runner
+readonly -f install_java_webapp_runner
 readonly -f check_environment
 readonly -f print_environment
 readonly -f export_db_conn
