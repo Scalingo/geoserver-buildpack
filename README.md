@@ -135,12 +135,12 @@ Defaults to `/app/geoserver-data`
 #### `JAVA_VERSION`
 
 Java Runtime Environment to use to run GeoServer.\
-Defaults to `11`
+Defaults to: see [java-war-buildpack](https://github.com/Scalingo/java-war-buildpack#java_version)
 
 #### `JAVA_WEBAPP_RUNNER_VERSION`
 
 Version of webapp runner to install and use.\
-Defaults to `9.0.52.1`
+Defaults to: see [java-war-buildpack](https://github.com/Scalingo/java-war-buildpack#java_webapp_runner_version)
 
 
 ## Requirements

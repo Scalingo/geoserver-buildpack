@@ -26,8 +26,8 @@ readonly geoserver_data_dir="${GEOSERVER_DATA_DIR:-/app/geoserver-data}"
 readonly config_script="${geoserver_config_script//\/app/$build_dir}"
 readonly data_dir="${geoserver_data_dir//\/app/$build_dir}"
 
-readonly java_version="${JAVA_VERSION:-11}"
-readonly webapp_runner_version="${JAVA_WEBAPP_RUNNER_VERSION:-9.0.52.1}"
+JAVA_VERSION="${JAVA_VERSION:-11}"
+export JAVA_VERSION
 
 
 # "Include" functions:
@@ -40,12 +40,7 @@ echo "---> Running with:"
 print_environment
 
 echo "---> Installing JRE ${java_version}"
-install_webapp_runner "${build_dir}" "${cache_dir}" \
-    "${java_version}" "${webapp_runner_version}" \
-    || {
-        echo "!! Unable to install JRE. Aborting." >&2
-        exit 1
-    }
+install_java_webapp_runner "${build_dir}" "${cache_dir}" "${env_dir}"
 
 
 get_geoserver "${build_dir}" "${cache_dir}" "${geoserver_version}"
@@ -71,7 +66,7 @@ readonly geoserver_pid="${!}"
 if [ -n "${geoserver_pid}" ]
 then
     echo "---> Started temporary GeoServer on ${temp_host} (pid: ${geoserver_pid})"
-    curl --silent --retry 6 --retry-connrefused --retry-delay 0 -4 \
+    curl --silent --retry 8 --retry-connrefused -4 \
         "${temp_host}"
 
     echo "---> Processing configuration templates"
@@ -140,7 +135,8 @@ cp "${buildpack_dir}/bin/startup.sh" "${build_dir}/bin/"
 
 # Leaving the BUILD phase, setting `GEOSERVER_DATA_DIR` back to its
 # initial value.
-export GEOSERVER_DATA_DIR="${geoserver_data_dir}"
+GEOSERVER_DATA_DIR="${geoserver_data_dir}"
+export GEOSERVER_DATA_DIR
 
 # Make sure GEOSERVER_DATA_DIR is exported when RUNning:
 cat > "${build_dir}/.profile.d/geoserver.sh" << EOF
