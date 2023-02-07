@@ -95,15 +95,15 @@ stop_geoserver() {
 # Usage: install_java_webapp_runner <build_dir> <cache_dir> <env_dir>
 #
 install_java_webapp_runner() {
-    local b_dir
-    local c_dir
+    local build_dir
+    local cache_dir
     local e_dir
 
     local java_war_buildpack_url
     local java_war_buildpack_dir
 
-    b_dir="${1}"
-    c_dir="${2}"
+    build_dir="${1}"
+    cache_dir="${2}"
     e_dir="${3}"
 
     java_war_buildpack_url="https://github.com/Scalingo/java-war-buildpack.git"
@@ -116,14 +116,14 @@ install_java_webapp_runner() {
     git clone --depth=1 "${java_war_buildpack_url}" "${java_war_buildpack_dir}"
 
     # And call it:
-    "${java_war_buildpack_dir}/bin/compile" "${b_dir}" "${c_dir}" "${e_dir}"
+    "${java_war_buildpack_dir}/bin/compile" "${build_dir}" "${cache_dir}" "${e_dir}"
 
     # Cleanup:
     rm -Rf "${java_war_buildpack_dir}"
 
     # If the java-war-buildpack left an export file behind, let's source it:
-    if [ -e "${b_dir}/export" ]; then
-        source "${b_dir}/export"
+    if [ -e "${build_dir}/export" ]; then
+        source "${build_dir}/export"
     fi
 }
 
