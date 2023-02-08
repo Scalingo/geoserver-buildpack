@@ -7,13 +7,13 @@
 # Usage: get_geoserver <build_dir> <cache_dir> <version>
 #
 get_geoserver() {
-    local build_d=$1
-    local cache_d=$2
-    local version=$3
+    local build_dir="${1}"
+    local cache_dir="${2}"
+    local version="${3}"
 
     local archive_name="geoserver-${version}-war.zip"
     local url="https://sourceforge.net/projects/geoserver/files/GeoServer/${version}/${archive_name}"
-    local zip_cache_file="${cache_d}/geoserver-${version}.zip"
+    local zip_cache_file="${cache_dir}/geoserver-${version}.zip"
 
     if [ ! -f "${zip_cache_file}" ] ; then
         echo "Downloading GeoServer ${version}"
@@ -24,10 +24,10 @@ get_geoserver() {
     fi
 
     # Either we got geoserver zip from the cache of from the project page
-    unzip -qq -o "${zip_cache_file}" -d "${build_d}/geoserver-${version}"
+    unzip -qq -o "${zip_cache_file}" -d "${build_dir}/geoserver-${version}"
 
     # Ensure we have a working link to current war version in $build_dir/geoserver.war
-    pushd "${build_d}" > /dev/null \
+    pushd "${build_dir}" > /dev/null \
         && ln -sfn "geoserver-${version}/geoserver.war" "geoserver.war" \
         && popd > /dev/null
 }
@@ -39,16 +39,16 @@ get_geoserver() {
 # Usage: run_geoserver <build_dir> <port>
 #
 run_geoserver() {
-    local build_d
+    local build_dir
     local port
 
-    build_d="${1}"
+    build_dir="${1}"
     port="${2}"
 
     # Starts the webserver in background (will be killed later)
-    java ${JAVA_OPTS:-} -jar "${build_d}/webapp-runner.jar" \
+    java ${JAVA_OPTS:-} -jar "${build_dir}/webapp-runner.jar" \
         --port "${port}" \
-        "${build_d}/geoserver.war" \
+        "${build_dir}/geoserver.war" \
         > out.log 2>&1 &
 }
 
@@ -97,14 +97,14 @@ stop_geoserver() {
 install_java_webapp_runner() {
     local build_dir
     local cache_dir
-    local e_dir
+    local env_dir
 
     local java_war_buildpack_url
     local java_war_buildpack_dir
 
     build_dir="${1}"
     cache_dir="${2}"
-    e_dir="${3}"
+    env_dir="${3}"
 
     java_war_buildpack_url="https://github.com/Scalingo/java-war-buildpack.git"
     java_war_buildpack_dir="$( mktemp java_war_buildpack_XXXX )"
@@ -116,7 +116,8 @@ install_java_webapp_runner() {
     git clone --depth=1 "${java_war_buildpack_url}" "${java_war_buildpack_dir}"
 
     # And call it:
-    "${java_war_buildpack_dir}/bin/compile" "${build_dir}" "${cache_dir}" "${e_dir}"
+    "${java_war_buildpack_dir}/bin/compile" \
+        "${build_dir}" "${cache_dir}" "${env_dir}"
 
     # Cleanup:
     rm -Rf "${java_war_buildpack_dir}"
@@ -234,13 +235,13 @@ do_template() {
 # BUILD --> RUN transition.
 #
 enforce_geowebcache_diskquota() {
-    local buildpack_d
+    local buildpack_dir
 
-    buildpack_d="${1}"
+    buildpack_dir="${1}"
 
     mkdir -p "${GEOSERVER_DATA_DIR}/gwc"
 
-    cp "${buildpack_d}/config/geowebcache-diskquota.xml" \
+    cp "${buildpack_dir}/config/geowebcache-diskquota.xml" \
         "${GEOSERVER_DATA_DIR}/gwc/"
 }
 
@@ -250,19 +251,19 @@ enforce_geowebcache_diskquota() {
 # Usage: enforce_logging_to_stdout <buildpack_dir>
 #
 enforce_logging_to_stdout() {
-    local buildpack_d
+    local buildpack_dir
     local url
     local user
     local pass
 
-    buildpack_d="${1}"
+    buildpack_dir="${1}"
     url="${2}"
     user="${3}"
     pass="${4}"
 
     mkdir -p "${GEOSERVER_DATA_DIR}/logs"
 
-    cp "${buildpack_d}/config/SCALINGO_LOGGING.xml" \
+    cp "${buildpack_dir}/config/SCALINGO_LOGGING.xml" \
         "${GEOSERVER_DATA_DIR}/logs/"
 
     # !! For some reason, using '--fail' with this one makes curl crash.
@@ -271,7 +272,7 @@ enforce_logging_to_stdout() {
         "${url}/rest/logging" \
         --user "${user}":"${pass}" \
         --header "Content-Type: application/json" \
-        --data "@${buildpack_d}/config/logging.json" \
+        --data "@${buildpack_dir}/config/logging.json" \
         > /dev/null 2>&1
 }
 
@@ -290,12 +291,12 @@ remove_masterpw() {
 # Usage: set_admin_password <buildpack_dir> <url> <user> <pass>
 #
 set_admin_password() {
-    local buildpack_d
+    local buildpack_dir
     local url
     local user
     local pass
 
-    buildpack_d="${1}"
+    buildpack_dir="${1}"
     url="${2}"
     user="${3}"
     pass="${4}"
@@ -304,7 +305,7 @@ set_admin_password() {
         "${url}/rest/security/self/password" \
         --user "${user}":"${pass}" \
         --header "Content-Type: application/json" \
-        --data "@${buildpack_d}/config/adminpw.json"
+        --data "@${buildpack_dir}/config/adminpw.json"
 }
 
 
@@ -313,12 +314,12 @@ set_admin_password() {
 # Usage: create_workspace <buildpack_dir> <url> <user> <pass>
 #
 create_workspace() {
-    local buildpack_d
+    local buildpack_dir
     local url
     local user
     local pass
 
-    buildpack_d="${1}"
+    buildpack_dir="${1}"
     url="${2}"
     user="${3}"
     pass="${4}"
@@ -335,7 +336,7 @@ create_workspace() {
         "${url}/rest/workspaces" \
         --user "${user}":"${pass}" \
         --header "Content-Type: application/json" \
-        --data "@${buildpack_d}/config/workspace.json"
+        --data "@${buildpack_dir}/config/workspace.json"
 }
 
 
@@ -345,12 +346,12 @@ create_workspace() {
 # Usage: create_datastore <buildpack_dir> <url> <user> <pass>
 #
 create_datastore() {
-    local buildpack_d
+    local buildpack_dir
     local url
     local user
     local pass
 
-    buildpack_d="${1}"
+    buildpack_dir="${1}"
     url="${2}"
     user="${3}"
     pass="${4}"
@@ -359,7 +360,7 @@ create_datastore() {
         "${url}/rest/workspaces/${GEOSERVER_WORKSPACE_NAME}/datastores" \
         --user "${user}":"${pass}" \
         --header "Content-Type: application/json" \
-        --data "@${buildpack_d}/config/datastore.json"
+        --data "@${buildpack_dir}/config/datastore.json"
 }
 
 readonly -f get_geoserver

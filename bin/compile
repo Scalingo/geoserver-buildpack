@@ -7,11 +7,12 @@ then
     set -x
 fi
 
-readonly build_dir="${1}"
-readonly cache_dir="${2}"
+readonly BUILD_DIR="${1}"
+readonly CACHE_DIR="${2}"
+readonly ENV_DIR="${3}"
 
-readonly base_dir="$( cd -P "$( dirname "$0" )" && pwd )"
-readonly buildpack_dir="$( readlink -f "${base_dir}/.." )"
+readonly BASE_DIR="$( cd -P "$( dirname "$0" )" && pwd )"
+readonly BUILDPACK_DIR="$( readlink -f "${BASE_DIR}/.." )"
 
 
 
@@ -23,15 +24,15 @@ readonly geoserver_config_script="${GEOSERVER_CONFIG_SCRIPT:-/app/configure-geos
 readonly geoserver_config_dir="${GEOSERVER_CONFIG_DIR:-${HOME}/geoserver}"
 readonly geoserver_data_dir="${GEOSERVER_DATA_DIR:-/app/geoserver-data}"
 
-readonly config_script="${geoserver_config_script//\/app/$build_dir}"
-readonly data_dir="${geoserver_data_dir//\/app/$build_dir}"
+readonly config_script="${geoserver_config_script//\/app/$BUILD_DIR}"
+readonly data_dir="${geoserver_data_dir//\/app/$BUILD_DIR}"
 
 JAVA_VERSION="${JAVA_VERSION:-11}"
 export JAVA_VERSION
 
 
 # "Include" functions:
-source "${buildpack_dir}/bin/geoserver.fn.sh"
+source "${BUILDPACK_DIR}/bin/geoserver.fn.sh"
 
 
 check_environment
@@ -40,10 +41,10 @@ echo "---> Running with:"
 print_environment
 
 echo "---> Installing JRE ${java_version}"
-install_java_webapp_runner "${build_dir}" "${cache_dir}" "${env_dir}"
+install_java_webapp_runner "${BUILD_DIR}" "${CACHE_DIR}" "${ENV_DIR}"
 
 
-get_geoserver "${build_dir}" "${cache_dir}" "${geoserver_version}"
+get_geoserver "${BUILD_DIR}" "${CACHE_DIR}" "${geoserver_version}"
 
 
 # Make sure GeoServer data directory exists:
@@ -60,7 +61,7 @@ readonly temp_host="http://localhost:${temp_port}"
 GEOSERVER_DATA_DIR="${data_dir}"
 export GEOSERVER_DATA_DIR
 
-run_geoserver "${build_dir}" "${temp_port}"
+run_geoserver "${BUILD_DIR}" "${temp_port}"
 readonly geoserver_pid="${!}"
 
 if [ -n "${geoserver_pid}" ]
@@ -75,7 +76,7 @@ then
     while IFS= read -r -d '' file
     do
         do_template "${file}"
-    done < <( find "${buildpack_dir}/config" -name "*.erb" -print0 )
+    done < <( find "${BUILDPACK_DIR}/config" -name "*.erb" -print0 )
 
     while IFS= read -r -d '' file
     do
@@ -88,11 +89,11 @@ then
     readonly default_pass="geoserver"
 
     echo "---> Creating ${GEOSERVER_WORKSPACE_NAME} workspace"
-    create_workspace "${buildpack_dir}" "${temp_host}" \
+    create_workspace "${BUILDPACK_DIR}" "${temp_host}" \
         "${default_user}" "${default_pass}"
 
     echo "---> Creating ${GEOSERVER_DATASTORE_NAME} datastore"
-    create_datastore "${buildpack_dir}" "${temp_host}" \
+    create_datastore "${BUILDPACK_DIR}" "${temp_host}" \
         "${default_user}" "${default_pass}"
 
 
@@ -105,17 +106,17 @@ then
 
 
     echo "---> Enforcing GeoWebCache disk quota"
-    enforce_geowebcache_diskquota "${buildpack_dir}"
+    enforce_geowebcache_diskquota "${BUILDPACK_DIR}"
 
     echo "---> Enforcing logging to stdout"
-    enforce_logging_to_stdout "${buildpack_dir}" "${temp_host}" \
+    enforce_logging_to_stdout "${BUILDPACK_DIR}" "${temp_host}" \
         "${default_user}" "${default_pass}"
 
     echo "---> Removing master password info file"
     remove_masterpw
 
     echo "---> Setting admin user account password"
-    set_admin_password "${buildpack_dir}" "${temp_host}" \
+    set_admin_password "${BUILDPACK_DIR}" "${temp_host}" \
         "${default_user}" "${default_pass}"
 
 
@@ -129,8 +130,8 @@ fi
 
 
 # Copy startup script:
-mkdir -p "${build_dir}/bin"
-cp "${buildpack_dir}/bin/startup.sh" "${build_dir}/bin/"
+mkdir -p "${BUILD_DIR}/bin"
+cp "${BUILDPACK_DIR}/bin/startup.sh" "${BUILD_DIR}/bin/"
 
 
 # Leaving the BUILD phase, setting `GEOSERVER_DATA_DIR` back to its
