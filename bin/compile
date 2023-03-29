@@ -143,9 +143,9 @@ cp "${buildpack_dir}/bin/startup.sh" "${build_dir}/bin/"
 export GEOSERVER_DATA_DIR="${geoserver_data_dir}"
 
 # Make sure GEOSERVER_DATA_DIR is exported when RUNning:
-cat > ".profile.d/geoserver.sh" <<SH
+cat > "${build_dir}/.profile.d/geoserver.sh" << EOF
 export GEOSERVER_DATA_DIR="${geoserver_data_dir}"
-SH
+EOF
 
 
 exit 0
