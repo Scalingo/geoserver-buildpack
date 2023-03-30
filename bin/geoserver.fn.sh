@@ -119,14 +119,14 @@ install_java_webapp_runner() {
     "${java_war_buildpack_dir}/bin/compile" \
         "${build_dir}" "${cache_dir}" "${env_dir}"
 
-    # Cleanup:
-    rm -Rf "${java_war_buildpack_dir}"
-
     # The java-war-buildpack leaves an `export` file in `$( pwd )`.
     # Let's source it:
     if [ -e "./export" ]; then
         source "./export"
     fi
+
+    # Cleanup:
+    rm -Rf "${java_war_buildpack_dir}"
 }
 
 
