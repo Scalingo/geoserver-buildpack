@@ -140,7 +140,7 @@ GEOSERVER_DATA_DIR="${geoserver_data_dir}"
 export GEOSERVER_DATA_DIR
 
 # Make sure GEOSERVER_DATA_DIR is exported when RUNning:
-cat > "${build_dir}/.profile.d/geoserver.sh" << EOF
+cat > "${BUILD_DIR}/.profile.d/geoserver.sh" << EOF
 export GEOSERVER_DATA_DIR="${geoserver_data_dir}"
 EOF
 
