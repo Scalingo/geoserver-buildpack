@@ -7,13 +7,13 @@
 # Usage: get_geoserver <build_dir> <cache_dir> <version>
 #
 get_geoserver() {
-    local build_d=$1
-    local cache_d=$2
-    local version=$3
+    local build_dir="${1}"
+    local cache_dir="${2}"
+    local version="${3}"
 
     local archive_name="geoserver-${version}-war.zip"
     local url="https://sourceforge.net/projects/geoserver/files/GeoServer/${version}/${archive_name}"
-    local zip_cache_file="${cache_d}/geoserver-${version}.zip"
+    local zip_cache_file="${cache_dir}/geoserver-${version}.zip"
 
     if [ ! -f "${zip_cache_file}" ] ; then
         echo "Downloading GeoServer ${version}"
@@ -24,10 +24,10 @@ get_geoserver() {
     fi
 
     # Either we got geoserver zip from the cache of from the project page
-    unzip -qq -o "${zip_cache_file}" -d "${build_d}/geoserver-${version}"
+    unzip -qq -o "${zip_cache_file}" -d "${build_dir}/geoserver-${version}"
 
     # Ensure we have a working link to current war version in $build_dir/geoserver.war
-    pushd "${build_d}" > /dev/null \
+    pushd "${build_dir}" > /dev/null \
         && ln -sfn "geoserver-${version}/geoserver.war" "geoserver.war" \
         && popd > /dev/null
 }
@@ -39,16 +39,16 @@ get_geoserver() {
 # Usage: run_geoserver <build_dir> <port>
 #
 run_geoserver() {
-    local build_d
+    local build_dir
     local port
 
-    build_d="${1}"
+    build_dir="${1}"
     port="${2}"
 
     # Starts the webserver in background (will be killed later)
-    java ${JAVA_OPTS:-} -jar "${build_d}/webapp-runner.jar" \
+    java ${JAVA_OPTS:-} -jar "${build_dir}/webapp-runner.jar" \
         --port "${port}" \
-        "${build_d}/geoserver.war" \
+        "${build_dir}/geoserver.war" \
         > out.log 2>&1 &
 }
 
@@ -92,72 +92,41 @@ stop_geoserver() {
 
 # Installs Java and webapp_runner
 #
-# Usage: install_webapp_runner <build_dir> <cache_dir> <java_version> <webapp_runner_version>
+# Usage: install_java_webapp_runner <build_dir> <cache_dir> <env_dir>
 #
-install_webapp_runner() {
-    local jvm_url
-    local runner_url
+install_java_webapp_runner() {
+    local build_dir
+    local cache_dir
+    local env_dir
 
-    local build_d
-    local cache_d
+    local java_war_buildpack_url
+    local java_war_buildpack_dir
 
-    local tmp_d
-    local jre_version
-    local runner_version
+    build_dir="${1}"
+    cache_dir="${2}"
+    env_dir="${3}"
 
-    local cached_jvm_common
-    local cached_runner
+    java_war_buildpack_url="https://github.com/Scalingo/java-war-buildpack.git"
+    java_war_buildpack_dir="$( mktemp java_war_buildpack_XXXX )"
 
-    build_d="${1}"
-    cache_d="${2}"
-    jre_version="${3}"
-    runner_version="${4}"
+    # We only need a random name, let's remove the file:
+    rm "${java_war_buildpack_dir}"
 
-    jvm_url="https://buildpacks-repository.s3.eu-central-1.amazonaws.com/jvm-common.tar.xz"
-    runner_url="https://buildpacks-repository.s3.eu-central-1.amazonaws.com/webapp-runner-${runner_version}.jar"
+    # Clone the java-war-buildpack:
+    git clone --depth=1 "${java_war_buildpack_url}" "${java_war_buildpack_dir}"
 
-    # Install JVM common tools:
-    cached_jvm_common="${cache_d}/jvm-common.tar.xz"
+    # And call it:
+    "${java_war_buildpack_dir}/bin/compile" \
+        "${build_dir}" "${cache_dir}" "${env_dir}"
 
-    if [ ! -f "${cached_jvm_common}" ]
-    then
-        curl --location --silent --retry 6 --retry-connrefused --retry-delay 0 \
-            "${jvm_url}" \
-            --output "${cached_jvm_common}"
+    # The java-war-buildpack leaves an `export` file in `$( pwd )`.
+    # Let's source it:
+    if [ -e "./export" ]; then
+        source "./export"
     fi
 
-    tmp_d=$( mktemp -d jvm-common-XXXXXX ) && {
-        tar --extract --xz --touch --strip-components=1 \
-            --file "${cached_jvm_common}" \
-            --directory "${tmp_d}"
-
-        # Source utilities and functions:
-        source "${tmp_d}/bin/util"
-        source "${tmp_d}/bin/java"
-
-        echo "java.runtime.version=${jre_version}" \
-            > "${build_d}/system.properties"
-
-        install_java_with_overlay "${build_d}"
-
-        rm -Rf "${tmp_d}"
-    }
-
-    # Install Webapp Runner
-    cached_runner="${cache_d}/webapp-runner-${runner_version}.jar"
-
-    if [ ! -f "${cached_runner}" ]
-    then
-        curl --location --silent --retry 6 --retry-connrefused --retry-delay 0 \
-            "${runner_url}" \
-            --output "${cached_runner}" \
-            || {
-                echo "Unable to download webapp runner ${runner_version}. Aborting."
-                exit 1
-            }
-    fi
-
-    cp "${cached_runner}" "${build_d}/webapp-runner.jar"
+    # Cleanup:
+    rm -Rf "${java_war_buildpack_dir}"
 }
 
 
@@ -169,8 +138,8 @@ print_environment() {
     echo -e "     GEOSERVER_VERSION: ${geoserver_version}"
     echo -e "     GEOSERVER_CONFIG_SCRIPT: ${geoserver_config_script}"
     echo -e "     GEOSERVER_DATA_DIR: ${geoserver_data_dir}"
-    echo -e "     JAVA_VERSION: ${java_version}"
-    echo -e "     JAVA_WEBAPP_RUNNER_VERSION: ${webapp_runner_version}"
+    echo -e "     JAVA_VERSION: ${JAVA_VERSION}"
+    echo -e "     JAVA_WEBAPP_RUNNER_VERSION: ${JAVA_WEBAPP_RUNNER_VERSION}"
 }
 
 
@@ -267,13 +236,13 @@ do_template() {
 # BUILD --> RUN transition.
 #
 enforce_geowebcache_diskquota() {
-    local buildpack_d
+    local buildpack_dir
 
-    buildpack_d="${1}"
+    buildpack_dir="${1}"
 
     mkdir -p "${GEOSERVER_DATA_DIR}/gwc"
 
-    cp "${buildpack_d}/config/geowebcache-diskquota.xml" \
+    cp "${buildpack_dir}/config/geowebcache-diskquota.xml" \
         "${GEOSERVER_DATA_DIR}/gwc/"
 }
 
@@ -283,19 +252,19 @@ enforce_geowebcache_diskquota() {
 # Usage: enforce_logging_to_stdout <buildpack_dir>
 #
 enforce_logging_to_stdout() {
-    local buildpack_d
+    local buildpack_dir
     local url
     local user
     local pass
 
-    buildpack_d="${1}"
+    buildpack_dir="${1}"
     url="${2}"
     user="${3}"
     pass="${4}"
 
     mkdir -p "${GEOSERVER_DATA_DIR}/logs"
 
-    cp "${buildpack_d}/config/SCALINGO_LOGGING.xml" \
+    cp "${buildpack_dir}/config/SCALINGO_LOGGING.xml" \
         "${GEOSERVER_DATA_DIR}/logs/"
 
     # !! For some reason, using '--fail' with this one makes curl crash.
@@ -304,7 +273,7 @@ enforce_logging_to_stdout() {
         "${url}/rest/logging" \
         --user "${user}":"${pass}" \
         --header "Content-Type: application/json" \
-        --data "@${buildpack_d}/config/logging.json" \
+        --data "@${buildpack_dir}/config/logging.json" \
         > /dev/null 2>&1
 }
 
@@ -323,12 +292,12 @@ remove_masterpw() {
 # Usage: set_admin_password <buildpack_dir> <url> <user> <pass>
 #
 set_admin_password() {
-    local buildpack_d
+    local buildpack_dir
     local url
     local user
     local pass
 
-    buildpack_d="${1}"
+    buildpack_dir="${1}"
     url="${2}"
     user="${3}"
     pass="${4}"
@@ -337,7 +306,7 @@ set_admin_password() {
         "${url}/rest/security/self/password" \
         --user "${user}":"${pass}" \
         --header "Content-Type: application/json" \
-        --data "@${buildpack_d}/config/adminpw.json"
+        --data "@${buildpack_dir}/config/adminpw.json"
 }
 
 
@@ -346,12 +315,12 @@ set_admin_password() {
 # Usage: create_workspace <buildpack_dir> <url> <user> <pass>
 #
 create_workspace() {
-    local buildpack_d
+    local buildpack_dir
     local url
     local user
     local pass
 
-    buildpack_d="${1}"
+    buildpack_dir="${1}"
     url="${2}"
     user="${3}"
     pass="${4}"
@@ -368,7 +337,7 @@ create_workspace() {
         "${url}/rest/workspaces" \
         --user "${user}":"${pass}" \
         --header "Content-Type: application/json" \
-        --data "@${buildpack_d}/config/workspace.json"
+        --data "@${buildpack_dir}/config/workspace.json"
 }
 
 
@@ -378,12 +347,12 @@ create_workspace() {
 # Usage: create_datastore <buildpack_dir> <url> <user> <pass>
 #
 create_datastore() {
-    local buildpack_d
+    local buildpack_dir
     local url
     local user
     local pass
 
-    buildpack_d="${1}"
+    buildpack_dir="${1}"
     url="${2}"
     user="${3}"
     pass="${4}"
@@ -392,13 +361,13 @@ create_datastore() {
         "${url}/rest/workspaces/${GEOSERVER_WORKSPACE_NAME}/datastores" \
         --user "${user}":"${pass}" \
         --header "Content-Type: application/json" \
-        --data "@${buildpack_d}/config/datastore.json"
+        --data "@${buildpack_dir}/config/datastore.json"
 }
 
 readonly -f get_geoserver
 readonly -f run_geoserver
 readonly -f stop_geoserver
-readonly -f install_webapp_runner
+readonly -f install_java_webapp_runner
 readonly -f check_environment
 readonly -f print_environment
 readonly -f export_db_conn
