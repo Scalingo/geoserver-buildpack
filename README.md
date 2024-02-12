@@ -2,8 +2,7 @@
 
 This buildpack downloads and installs GeoServer into a Scalingo app image.
 
-**Disclaimer**:
-
+> [!IMPORTANT]
 > This buildpack has been tested on Scalingo with GeoServer 2.21.1 only.
 >
 > It has a few [requirements](#requirements), [default settings](#default-settings)
@@ -205,7 +204,7 @@ although **we don't recommend it**.
 
 ### GeoServer configuration does not persist
 
-> **Warning**\
+> [!WARNING]
 > **GeoServer stores its configuration on a regular filesystem, which
 is not supported by Scalingo. GeoServer's configuration will be lost each time
 you deploy or restart the app.**
@@ -220,12 +219,12 @@ Ideally, these API calls should create styles, layers, or even additional
 workspace(s), datastore(s),... (see [Configuration examples](#configuration-examples)
 below).
 
-> **Warning**\
+> [!WARNING]
 > **You have to make sure the configuration deployed during the *`BUILD`* phase
 will persist when entering the *`RUN`* phase.** Our experience show that it's
 not always the case. Calling the GeoWebCache API, for example, won't work.
 
-> **Warning**\
+> [!WARNING]
 > **You have to trigger a new deployment of your application each time the
 configuration changes or if the database settings change** (the latter
 remaining very unlikely to happen).
