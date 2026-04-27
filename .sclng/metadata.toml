@@ -1,0 +1,6 @@
+dependencies = []
+description = "Geoserver Buildpack"
+languages = ["shell"]
+owner = "francois.kubler@scalingo.com"
+team = "IST"
+version = "1.1.2"
