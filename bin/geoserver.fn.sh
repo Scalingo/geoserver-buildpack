@@ -48,8 +48,8 @@ run_geoserver() {
     # Starts the webserver in background (will be killed later)
     java ${JAVA_OPTS:-} -jar "${build_dir}/webapp-runner.jar" \
         --port "${port}" \
-        "${build_dir}/geoserver.war" \
-        > out.log 2>&1 &
+        "${build_dir}/geoserver.war" & #\
+        # > out.log 2>&1 &
 }
 
 
