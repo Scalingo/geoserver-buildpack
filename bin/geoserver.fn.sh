@@ -127,6 +127,8 @@ install_java_webapp_runner() {
 
     # Cleanup:
     rm -Rf "${java_war_buildpack_dir}"
+
+	echo -e "Java Version: $( java --version )"
 }
 
 
