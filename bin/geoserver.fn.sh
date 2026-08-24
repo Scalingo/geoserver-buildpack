@@ -107,7 +107,7 @@ install_java_webapp_runner() {
     env_dir="${3}"
 
     java_war_buildpack_url="https://github.com/Scalingo/java-war-buildpack.git"
-    java_war_buildpack_dir="$( mktemp java_war_buildpack_XXXX )"
+    java_war_buildpack_dir="$( mktemp /tmp/java_war_buildpack_XXXX )"
 
     # We only need a random name, let's remove the file:
     rm "${java_war_buildpack_dir}"
@@ -119,16 +119,11 @@ install_java_webapp_runner() {
     "${java_war_buildpack_dir}/bin/compile" \
         "${build_dir}" "${cache_dir}" "${env_dir}"
 
-    # The java-war-buildpack leaves an `export` file in `$( pwd )`.
-    # Let's source it:
-    if [ -e "./export" ]; then
-        source "./export"
-    fi
+    PATH="${PATH}:${build_dir}/.jdk/bin"
+    export PATH
 
     # Cleanup:
     rm -Rf "${java_war_buildpack_dir}"
-
-	echo -e "Java Version: $( java --version )"
 }
 
 
