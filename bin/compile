@@ -41,8 +41,12 @@ echo "---> Running with:"
 print_environment
 
 echo "---> Installing JRE ${java_version}"
+
+cp "${BUILD_DIR}/webapp-runner.jar" "${BUILD_DIR}/webapp-runner.jar.bak"
+
 install_java_webapp_runner "${BUILD_DIR}" "${CACHE_DIR}" "${ENV_DIR}"
 
+cp "${BUILD_DIR}/webapp-runner.jar.bak" "${BUILD_DIR}/webapp-runner.jar"
 
 get_geoserver "${BUILD_DIR}" "${CACHE_DIR}" "${geoserver_version}"
 
