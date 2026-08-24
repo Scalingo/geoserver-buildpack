@@ -81,17 +81,20 @@ then
         do_template "${file}"
     done < <( find "${BUILDPACK_DIR}/config" -name "*.erb" -print0 )
 
-    while IFS= read -r -d '' file
-    do
-        do_template "${file}"
-    done < <( find "${geoserver_config_dir}" -name "*.erb" -print0 )
-
+    if [ -d "${geoserver_config_dir}" ]; then
+        while IFS= read -r -d '' file
+        do
+            do_template "${file}"
+        done < <( find "${geoserver_config_dir}" -name "*.erb" -print0 )
+    fi
 
     # Configuring GeoServer:
     readonly default_user="admin"
     readonly default_pass="geoserver"
 
     echo "---> Creating ${GEOSERVER_WORKSPACE_NAME} workspace"
+    cat "${BUILDPACK_DIR}/config/workspace.json"
+
     create_workspace "${BUILDPACK_DIR}" "${temp_host}" \
         "${default_user}" "${default_pass}"
 
