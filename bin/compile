@@ -19,7 +19,7 @@ readonly BUILDPACK_DIR="$( readlink -f "${BASE_DIR}/.." )"
 GEOSERVER_DATASTORE_DESCRIPTION="${GEOSERVER_DATASTORE_DESCRIPTION:-''}"
 export GEOSERVER_DATASTORE_DESCRIPTION
 
-readonly geoserver_version="${GEOSERVER_VERSION:-2.21.1}"
+readonly geoserver_version="${GEOSERVER_VERSION:-2.28.5}"
 readonly geoserver_config_script="${GEOSERVER_CONFIG_SCRIPT:-/app/configure-geoserver.sh}"
 readonly geoserver_config_dir="${GEOSERVER_CONFIG_DIR:-${HOME}/geoserver}"
 readonly geoserver_data_dir="${GEOSERVER_DATA_DIR:-/app/geoserver-data}"
