@@ -67,8 +67,11 @@ readonly geoserver_pid="${!}"
 if [ -n "${geoserver_pid}" ]
 then
     echo "---> Started temporary GeoServer on ${temp_host} (pid: ${geoserver_pid})"
-    curl --silent --retry 8 --retry-connrefused -4 \
-        "${temp_host}"
+	if [ -n "${BUILDPACK_DEBUG}" ]; then
+		curl --retry 8 --retry-connrefused -4 "${temp_host}"
+	else
+		curl --retry 8 --retry-connrefused -4 --silent "${temp_host}"
+	fi
 
     echo "---> Processing configuration templates"
     export_db_conn
