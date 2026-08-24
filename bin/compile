@@ -67,11 +67,11 @@ readonly geoserver_pid="${!}"
 if [ -n "${geoserver_pid}" ]
 then
     echo "---> Started temporary GeoServer on ${temp_host} (pid: ${geoserver_pid})"
-	if [ -n "${BUILDPACK_DEBUG}" ]; then
-		curl --retry 8 --retry-connrefused -4 "${temp_host}"
-	else
-		curl --retry 8 --retry-connrefused -4 --silent "${temp_host}"
-	fi
+    if [ -n "${BUILDPACK_DEBUG}" ]; then
+        curl --retry 8 --retry-connrefused -4 "${temp_host}"
+    else
+        curl --retry 8 --retry-connrefused -4 --silent "${temp_host}"
+    fi
 
     echo "---> Processing configuration templates"
     export_db_conn
@@ -91,6 +91,14 @@ then
     # Configuring GeoServer:
     readonly default_user="admin"
     readonly default_pass="geoserver"
+
+    # DEBUG:
+    curl -i "${temp_host}/geoserver/web/"
+
+    # DEBUG:
+    curl -i \
+      --user "${default_user}":"${default_pass}" \
+      "${temp_host}/geoserver/rest/about/version.json"
 
     echo "---> Creating ${GEOSERVER_WORKSPACE_NAME} workspace"
     cat "${BUILDPACK_DIR}/config/workspace.json"
