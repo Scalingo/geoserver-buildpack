@@ -27,7 +27,7 @@ readonly geoserver_data_dir="${GEOSERVER_DATA_DIR:-/app/geoserver-data}"
 readonly config_script="${geoserver_config_script//\/app/$BUILD_DIR}"
 readonly data_dir="${geoserver_data_dir//\/app/$BUILD_DIR}"
 
-JAVA_VERSION="${JAVA_VERSION:-11}"
+JAVA_VERSION="${JAVA_VERSION:-21}"
 export JAVA_VERSION
 
 
