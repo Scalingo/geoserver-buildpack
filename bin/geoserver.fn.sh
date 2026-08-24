@@ -326,12 +326,12 @@ create_workspace() {
     # (also make sure this won't fail when the workspace does not exist yet)
 
     curl -4 --silent --fail --request DELETE \
-        "${url}/geoserver/rest/workspaces/${GEOSERVER_WORKSPACE_NAME}?recurse=true" \
+        "${url}/rest/workspaces/${GEOSERVER_WORKSPACE_NAME}?recurse=true" \
         --user "${user}":"${pass}" \
         || true
 
     curl -4 --silent --fail --show-error --request POST \
-        "${url}/geoserver/rest/workspaces" \
+        "${url}/rest/workspaces" \
         --user "${user}":"${pass}" \
         --header "Content-Type: application/json" \
         --data "@${buildpack_dir}/config/workspace.json"
