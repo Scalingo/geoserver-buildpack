@@ -7,29 +7,29 @@
 # Usage: get_geoserver <build_dir> <cache_dir> <version>
 #
 get_geoserver() {
-    local build_dir="${1}"
-    local cache_dir="${2}"
-    local version="${3}"
+	local build_dir="${1}"
+	local cache_dir="${2}"
+	local version="${3}"
 
-    local archive_name="geoserver-${version}-war.zip"
-    local url="https://sourceforge.net/projects/geoserver/files/GeoServer/${version}/${archive_name}"
-    local zip_cache_file="${cache_dir}/geoserver-${version}.zip"
+	local archive_name="geoserver-${version}-war.zip"
+	local url="https://sourceforge.net/projects/geoserver/files/GeoServer/${version}/${archive_name}"
+	local zip_cache_file="${cache_dir}/geoserver-${version}.zip"
 
-    if [ ! -f "${zip_cache_file}" ] ; then
-        echo "Downloading GeoServer ${version}"
-        curl --retry 3 --silent --location "${url}" \
-            --output "${zip_cache_file}"
-    else
-        echo "---> Retrieving GeoServer ${version} from cache"
-    fi
+	if [ ! -f "${zip_cache_file}" ] ; then
+		echo "Downloading GeoServer ${version}"
+		curl --retry 3 --silent --location "${url}" \
+			--output "${zip_cache_file}"
+	else
+		echo "---> Retrieving GeoServer ${version} from cache"
+	fi
 
-    # Either we got geoserver zip from the cache of from the project page
-    unzip -qq -o "${zip_cache_file}" -d "${build_dir}/geoserver-${version}"
+	# Either we got geoserver zip from the cache of from the project page
+	unzip -qq -o "${zip_cache_file}" -d "${build_dir}/geoserver-${version}"
 
-    # Ensure we have a working link to current war version in $build_dir/geoserver.war
-    pushd "${build_dir}" > /dev/null \
-        && ln -sfn "geoserver-${version}/geoserver.war" "geoserver.war" \
-        && popd > /dev/null
+	# Ensure we have a working link to current war version in $build_dir/geoserver.war
+	pushd "${build_dir}" > /dev/null \
+		&& ln -sfn "geoserver-${version}/geoserver.war" "geoserver.war" \
+		&& popd > /dev/null
 }
 
 
@@ -39,17 +39,17 @@ get_geoserver() {
 # Usage: run_geoserver <build_dir> <port>
 #
 run_geoserver() {
-    local build_dir
-    local port
+	local build_dir
+	local port
 
-    build_dir="${1}"
-    port="${2}"
+	build_dir="${1}"
+	port="${2}"
 
-    # Starts the webserver in background (will be killed later)
-    java ${JAVA_OPTS:-} -jar "${build_dir}/webapp-runner.jar" \
-        --port "${port}" \
-        "${build_dir}/geoserver.war" & #\
-        # > out.log 2>&1 &
+	# Starts the webserver in background (will be killed later)
+	java ${JAVA_OPTS:-} -jar "${build_dir}/webapp-runner.jar" \
+		--port "${port}" \
+		"${build_dir}/geoserver.war" & #\
+		# > out.log 2>&1 &
 }
 
 
@@ -58,35 +58,35 @@ run_geoserver() {
 # Usage: stop_geoserver <pid>
 #
 stop_geoserver() {
-    local pid
-    local waited
+	local pid
+	local waited
 
-    pid="${1}"
-    waited=0
+	pid="${1}"
+	waited=0
 
-    set +e
+	set +e
 
-    kill -SIGTERM "${pid}"
+	kill -SIGTERM "${pid}"
 
-    while [ ${waited} -lt 180 ]
-    do
-        sleep 1
+	while [ ${waited} -lt 180 ]
+	do
+		sleep 1
 
-        kill -0 "${pid}" > /dev/null 2>&1 \
-            || break
+		kill -0 "${pid}" > /dev/null 2>&1 \
+			|| break
 
-        ((waited++))
-    done
+		((waited++))
+	done
 
-    kill -0 "${pid}" > /dev/null 2>&1 \
-        && {
-            kill -SIGKILL "${pid}"
-            echo "!! Temporary GeoServer was not responding and has been killed."
-            echo "!! Stopping build as this may have introduced data corruption."
-            exit 1
-        }
+	kill -0 "${pid}" > /dev/null 2>&1 \
+		&& {
+			kill -SIGKILL "${pid}"
+			echo "!! Temporary GeoServer was not responding and has been killed."
+			echo "!! Stopping build as this may have introduced data corruption."
+			exit 1
+		}
 
-    set -e
+	set -e
 }
 
 
@@ -95,35 +95,39 @@ stop_geoserver() {
 # Usage: install_java_webapp_runner <build_dir> <cache_dir> <env_dir>
 #
 install_java_webapp_runner() {
-    local build_dir
-    local cache_dir
-    local env_dir
+	local build_dir
+	local cache_dir
+	local env_dir
 
-    local java_war_buildpack_url
-    local java_war_buildpack_dir
+	local java_war_buildpack_url
+	local java_war_buildpack_dir
 
-    build_dir="${1}"
-    cache_dir="${2}"
-    env_dir="${3}"
+	build_dir="${1}"
+	cache_dir="${2}"
+	env_dir="${3}"
 
-    java_war_buildpack_url="https://github.com/Scalingo/java-war-buildpack.git"
-    java_war_buildpack_dir="$( mktemp /tmp/java_war_buildpack_XXXX )"
+	java_war_buildpack_url="https://github.com/Scalingo/java-war-buildpack.git"
+	java_war_buildpack_dir="$( mktemp /tmp/java_war_buildpack_XXXX )"
 
-    # We only need a random name, let's remove the file:
-    rm "${java_war_buildpack_dir}"
+	# We only need a random name, let's remove the file:
+	rm "${java_war_buildpack_dir}"
 
-    # Clone the java-war-buildpack:
-    git clone --depth=1 "${java_war_buildpack_url}" "${java_war_buildpack_dir}"
+	# Clone the java-war-buildpack:
+	git clone --depth=1 "${java_war_buildpack_url}" "${java_war_buildpack_dir}"
 
-    # And call it:
-    "${java_war_buildpack_dir}/bin/compile" \
-        "${build_dir}" "${cache_dir}" "${env_dir}"
+	# For GeoServer, we need webapp-runner-main:
+	JAVA_WEBAPP_RUNNER_FLAVOR="main"
+	export JAVA_WEBAPP_RUNNER_FLAVOR
 
-    PATH="${PATH}:${build_dir}/.jdk/bin"
-    export PATH
+	# And call it:
+	"${java_war_buildpack_dir}/bin/compile" \
+		"${build_dir}" "${cache_dir}" "${env_dir}"
 
-    # Cleanup:
-    rm -Rf "${java_war_buildpack_dir}"
+	PATH="${PATH}:${build_dir}/.jdk/bin"
+	export PATH
+
+	# Cleanup:
+	rm -Rf "${java_war_buildpack_dir}"
 }
 
 
@@ -132,11 +136,11 @@ install_java_webapp_runner() {
 # Usage: print_environment
 #
 print_environment() {
-    echo -e "     GEOSERVER_VERSION: ${geoserver_version}"
-    echo -e "     GEOSERVER_CONFIG_SCRIPT: ${geoserver_config_script}"
-    echo -e "     GEOSERVER_DATA_DIR: ${geoserver_data_dir}"
-    echo -e "     JAVA_VERSION: ${JAVA_VERSION}"
-    echo -e "     JAVA_WEBAPP_RUNNER_VERSION: ${JAVA_WEBAPP_RUNNER_VERSION}"
+	echo -e "	  GEOSERVER_VERSION: ${geoserver_version}"
+	echo -e "	  GEOSERVER_CONFIG_SCRIPT: ${geoserver_config_script}"
+	echo -e "	  GEOSERVER_DATA_DIR: ${geoserver_data_dir}"
+	echo -e "	  JAVA_VERSION: ${JAVA_VERSION}"
+	echo -e "	  JAVA_WEBAPP_RUNNER_VERSION: ${JAVA_WEBAPP_RUNNER_VERSION}"
 }
 
 
@@ -145,37 +149,37 @@ print_environment() {
 # Usage: check_environment
 #
 check_environment() {
-    local mandatory
-    local mandatory_is_ok
+	local mandatory
+	local mandatory_is_ok
 
-    mandatory=(
-        GEOSERVER_ADMIN_PASSWORD
-        GEOSERVER_WORKSPACE_NAME
-        GEOSERVER_DATASTORE_NAME
-    )
+	mandatory=(
+		GEOSERVER_ADMIN_PASSWORD
+		GEOSERVER_WORKSPACE_NAME
+		GEOSERVER_DATASTORE_NAME
+	)
 
-    mandatory_is_ok=0
+	mandatory_is_ok=0
 
-    for m in "${mandatory[@]}"
-    do
-        if [ -z "${!m}" ]
-        then
-            echo "!! Setting the ${m} environment variable is mandatory." >&2
-            echo "!! Please set it and relaunch your deployment." >&2
-            mandatory_is_ok=1
-        fi
-    done
+	for m in "${mandatory[@]}"
+	do
+		if [ -z "${!m}" ]
+		then
+			echo "!! Setting the ${m} environment variable is mandatory." >&2
+			echo "!! Please set it and relaunch your deployment." >&2
+			mandatory_is_ok=1
+		fi
+	done
 
-    if [ -z "${SCALINGO_POSTGRESQL_URL}" ]
-    then
-        echo "!! This buildpack requires a PostgreSQL database addon." >&2
-        mandatory_is_ok=1
-    fi
+	if [ -z "${SCALINGO_POSTGRESQL_URL}" ]
+	then
+		echo "!! This buildpack requires a PostgreSQL database addon." >&2
+		mandatory_is_ok=1
+	fi
 
-    if [ ${mandatory_is_ok} -ne 0 ]
-    then
-        exit 1
-    fi
+	if [ ${mandatory_is_ok} -ne 0 ]
+	then
+		exit 1
+	fi
 }
 
 
@@ -185,26 +189,26 @@ check_environment() {
 # Usage: export_db_conn
 #
 export_db_conn() {
-    DB_HOST="$( echo "${SCALINGO_POSTGRESQL_URL}" \
-        | cut -d "@" -f2 | cut -d ":" -f1 )"
+	DB_HOST="$( echo "${SCALINGO_POSTGRESQL_URL}" \
+		| cut -d "@" -f2 | cut -d ":" -f1 )"
 
-    DB_USER="$( echo "${SCALINGO_POSTGRESQL_URL}" \
-        | cut -d "/" -f3 | cut -d ":" -f1 )"
+	DB_USER="$( echo "${SCALINGO_POSTGRESQL_URL}" \
+		| cut -d "/" -f3 | cut -d ":" -f1 )"
 
-    DB_PORT="$( echo "${SCALINGO_POSTGRESQL_URL}" \
-        | cut -d ":" -f4 | cut -d "/" -f1 )"
+	DB_PORT="$( echo "${SCALINGO_POSTGRESQL_URL}" \
+		| cut -d ":" -f4 | cut -d "/" -f1 )"
 
-    DB_PASS="$( echo "${SCALINGO_POSTGRESQL_URL}" \
-        | cut -d "@" -f1 | cut -d ":" -f3 )"
+	DB_PASS="$( echo "${SCALINGO_POSTGRESQL_URL}" \
+		| cut -d "@" -f1 | cut -d ":" -f3 )"
 
-    DB_NAME="$( echo "${SCALINGO_POSTGRESQL_URL}" \
-        | cut -d "?" -f1 | cut -d "/" -f4 )"
+	DB_NAME="$( echo "${SCALINGO_POSTGRESQL_URL}" \
+		| cut -d "?" -f1 | cut -d "/" -f4 )"
 
-    export DB_HOST
-    export DB_USER
-    export DB_PORT
-    export DB_PASS
-    export DB_NAME
+	export DB_HOST
+	export DB_USER
+	export DB_PORT
+	export DB_PASS
+	export DB_NAME
 }
 
 
@@ -213,15 +217,15 @@ export_db_conn() {
 # Usage: do_template <template_file>
 #
 do_template() {
-    local src
-    local dst
+	local src
+	local dst
 
-    src="${1}"
-    # dst is the same as src, exept we remove the '.erb' suffix:
-    dst="${src%.erb}"
+	src="${1}"
+	# dst is the same as src, exept we remove the '.erb' suffix:
+	dst="${src%.erb}"
 
-    # Process the template:
-    erb "${src}" > "${dst}"
+	# Process the template:
+	erb "${src}" > "${dst}"
 }
 
 
@@ -233,14 +237,14 @@ do_template() {
 # BUILD --> RUN transition.
 #
 enforce_geowebcache_diskquota() {
-    local buildpack_dir
+	local buildpack_dir
 
-    buildpack_dir="${1}"
+	buildpack_dir="${1}"
 
-    mkdir -p "${GEOSERVER_DATA_DIR}/gwc"
+	mkdir -p "${GEOSERVER_DATA_DIR}/gwc"
 
-    cp "${buildpack_dir}/config/geowebcache-diskquota.xml" \
-        "${GEOSERVER_DATA_DIR}/gwc/"
+	cp "${buildpack_dir}/config/geowebcache-diskquota.xml" \
+		"${GEOSERVER_DATA_DIR}/gwc/"
 }
 
 
@@ -249,29 +253,29 @@ enforce_geowebcache_diskquota() {
 # Usage: enforce_logging_to_stdout <buildpack_dir>
 #
 enforce_logging_to_stdout() {
-    local buildpack_dir
-    local url
-    local user
-    local pass
+	local buildpack_dir
+	local url
+	local user
+	local pass
 
-    buildpack_dir="${1}"
-    url="${2}"
-    user="${3}"
-    pass="${4}"
+	buildpack_dir="${1}"
+	url="${2}"
+	user="${3}"
+	pass="${4}"
 
-    mkdir -p "${GEOSERVER_DATA_DIR}/logs"
+	mkdir -p "${GEOSERVER_DATA_DIR}/logs"
 
-    cp "${buildpack_dir}/config/SCALINGO_LOGGING.xml" \
-        "${GEOSERVER_DATA_DIR}/logs/"
+	cp "${buildpack_dir}/config/SCALINGO_LOGGING.xml" \
+		"${GEOSERVER_DATA_DIR}/logs/"
 
-    # !! For some reason, using '--fail' with this one makes curl crash.
-    # Redirecting outputs to /dev/null instead.
-    curl -4 --silent --show-error --request PUT \
-        "${url}/rest/logging" \
-        --user "${user}":"${pass}" \
-        --header "Content-Type: application/json" \
-        --data "@${buildpack_dir}/config/logging.json" \
-        > /dev/null 2>&1
+	# !! For some reason, using '--fail' with this one makes curl crash.
+	# Redirecting outputs to /dev/null instead.
+	curl -4 --silent --show-error --request PUT \
+		"${url}/rest/logging" \
+		--user "${user}":"${pass}" \
+		--header "Content-Type: application/json" \
+		--data "@${buildpack_dir}/config/logging.json" \
+		> /dev/null 2>&1
 }
 
 
@@ -280,7 +284,7 @@ enforce_logging_to_stdout() {
 # Usage: remove_masterpw
 #
 remove_masterpw() {
-    rm -f "${GEOSERVER_DATA_DIR}/security/masterpw.info"
+	rm -f "${GEOSERVER_DATA_DIR}/security/masterpw.info"
 }
 
 
@@ -289,21 +293,21 @@ remove_masterpw() {
 # Usage: set_admin_password <buildpack_dir> <url> <user> <pass>
 #
 set_admin_password() {
-    local buildpack_dir
-    local url
-    local user
-    local pass
+	local buildpack_dir
+	local url
+	local user
+	local pass
 
-    buildpack_dir="${1}"
-    url="${2}"
-    user="${3}"
-    pass="${4}"
+	buildpack_dir="${1}"
+	url="${2}"
+	user="${3}"
+	pass="${4}"
 
-    curl -4 --silent --fail --show-error --request PUT \
-        "${url}/rest/security/self/password" \
-        --user "${user}":"${pass}" \
-        --header "Content-Type: application/json" \
-        --data "@${buildpack_dir}/config/adminpw.json"
+	curl -4 --silent --fail --show-error --request PUT \
+		"${url}/rest/security/self/password" \
+		--user "${user}":"${pass}" \
+		--header "Content-Type: application/json" \
+		--data "@${buildpack_dir}/config/adminpw.json"
 }
 
 
@@ -312,29 +316,29 @@ set_admin_password() {
 # Usage: create_workspace <buildpack_dir> <url> <user> <pass>
 #
 create_workspace() {
-    local buildpack_dir
-    local url
-    local user
-    local pass
+	local buildpack_dir
+	local url
+	local user
+	local pass
 
-    buildpack_dir="${1}"
-    url="${2}"
-    user="${3}"
-    pass="${4}"
+	buildpack_dir="${1}"
+	url="${2}"
+	user="${3}"
+	pass="${4}"
 
-    # Make sure the workspace doesn't exist:
-    # (also make sure this won't fail when the workspace does not exist yet)
+	# Make sure the workspace doesn't exist:
+	# (also make sure this won't fail when the workspace does not exist yet)
 
-    curl -4 --silent --fail --request DELETE \
-        "${url}/rest/workspaces/${GEOSERVER_WORKSPACE_NAME}?recurse=true" \
-        --user "${user}":"${pass}" \
-        || true
+	curl -4 --silent --fail --request DELETE \
+		"${url}/rest/workspaces/${GEOSERVER_WORKSPACE_NAME}?recurse=true" \
+		--user "${user}":"${pass}" \
+		|| true
 
-    curl -4 --silent --fail --show-error --request POST \
-        "${url}/rest/workspaces" \
-        --user "${user}":"${pass}" \
-        --header "Content-Type: application/json" \
-        --data "@${buildpack_dir}/config/workspace.json"
+	curl -4 --silent --fail --show-error --request POST \
+		"${url}/rest/workspaces" \
+		--user "${user}":"${pass}" \
+		--header "Content-Type: application/json" \
+		--data "@${buildpack_dir}/config/workspace.json"
 }
 
 
@@ -344,21 +348,21 @@ create_workspace() {
 # Usage: create_datastore <buildpack_dir> <url> <user> <pass>
 #
 create_datastore() {
-    local buildpack_dir
-    local url
-    local user
-    local pass
+	local buildpack_dir
+	local url
+	local user
+	local pass
 
-    buildpack_dir="${1}"
-    url="${2}"
-    user="${3}"
-    pass="${4}"
+	buildpack_dir="${1}"
+	url="${2}"
+	user="${3}"
+	pass="${4}"
 
-    curl -4 --silent --fail --show-error --request POST \
-        "${url}/rest/workspaces/${GEOSERVER_WORKSPACE_NAME}/datastores" \
-        --user "${user}":"${pass}" \
-        --header "Content-Type: application/json" \
-        --data "@${buildpack_dir}/config/datastore.json"
+	curl -4 --silent --fail --show-error --request POST \
+		"${url}/rest/workspaces/${GEOSERVER_WORKSPACE_NAME}/datastores" \
+		--user "${user}":"${pass}" \
+		--header "Content-Type: application/json" \
+		--data "@${buildpack_dir}/config/datastore.json"
 }
 
 readonly -f get_geoserver
