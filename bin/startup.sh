@@ -18,4 +18,5 @@ fi
 java ${JAVA_OPTS} \
     -jar "${HOME}/webapp-runner.jar" \
     --port "${PORT}" \
+    --proxy-base-url "${PROXY_BASE_URL}" \
     "${HOME}/geoserver.war"
