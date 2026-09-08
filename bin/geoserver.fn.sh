@@ -331,7 +331,6 @@ create_workspace() {
 	curl -4 --silent --fail --request DELETE \
 		"${url}/rest/workspaces/${GEOSERVER_WORKSPACE_NAME}?recurse=true" \
 		--user "${user}":"${pass}" \
-		>/dev/null 2>&1 \
 		|| true
 
 	curl -4 --silent --fail --show-error --request POST \

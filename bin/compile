@@ -94,20 +94,12 @@ then
     fi
 
     # Configuring GeoServer:
+    # Default credentials, these are hard-coded in GeoServer and will be
+    # removed later on.
     readonly default_user="admin"
     readonly default_pass="geoserver"
 
-    # DEBUG:
-    #curl -i "${temp_host}/geoserver/web/"
-
-    # DEBUG:
-    #curl -i \
-    #  --user "${default_user}":"${default_pass}" \
-    #  "${temp_host}/geoserver/rest/about/version.json"
-
     echo "---> Creating ${GEOSERVER_WORKSPACE_NAME} workspace"
-    cat "${BUILDPACK_DIR}/config/workspace.json"
-
     create_workspace "${BUILDPACK_DIR}" "${temp_host}" \
         "${default_user}" "${default_pass}"
 
@@ -117,12 +109,10 @@ then
 
 
     # Import customer's configuration:
-    if [ -f "${config_script}" ]
-    then
+    if [[ -f "${config_script}" ]]; then
         echo "---> Importing configuration"
         source "${config_script}"
     fi
-
 
     echo "---> Enforcing GeoWebCache disk quota"
     enforce_geowebcache_diskquota "${BUILDPACK_DIR}"
