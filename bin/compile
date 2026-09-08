@@ -98,12 +98,12 @@ then
     readonly default_pass="geoserver"
 
     # DEBUG:
-    curl -i "${temp_host}/geoserver/web/"
+    #curl -i "${temp_host}/geoserver/web/"
 
     # DEBUG:
-    curl -i \
-      --user "${default_user}":"${default_pass}" \
-      "${temp_host}/geoserver/rest/about/version.json"
+    #curl -i \
+    #  --user "${default_user}":"${default_pass}" \
+    #  "${temp_host}/geoserver/rest/about/version.json"
 
     echo "---> Creating ${GEOSERVER_WORKSPACE_NAME} workspace"
     cat "${BUILDPACK_DIR}/config/workspace.json"
