@@ -3,17 +3,17 @@
 This buildpack downloads and installs GeoServer into a Scalingo app image.
 
 > [!IMPORTANT]
-> This buildpack has been tested on Scalingo with GeoServer 2.21.1 only.
+> This buildpack has been tested on Scalingo with GeoServer 2.28.5 only.
 >
 > It has a few [requirements](#requirements), [default settings](#default-settings)
 and [known limitations](#known-limitations) that you should be aware of.
 >
 > It is highly recommended to setup your GeoServer following state-of-the-art
 recommandations, such as the ones that can be found in the
-[GeoCat documentation](https://www.geocat.net/docs/geoserver-enterprise/2022/welcome/index.html).
+[GeoCat documentation](https://docs.geocat.net/map/2026/welcome/#service-configuration).
 >
 > It is also highly recommended to follow the best practicess and security
-advises that can be found in the [GeoCat documentation](https://www.geocat.net/docs/geoserver-enterprise/2020.5/security/index.html).
+advises that can be found in the [GeoCat documentation](https://docs.geocat.net/map/2026/welcome/#security).
 
 ## Usage
 
@@ -47,11 +47,19 @@ The following instructions should get you started:
 % scalingo --app my-geoserver env-set GEOSERVER_ADMIN_PASSWORD="s0_s3cret"
 % scalingo --app my-geoserver env-set GEOSERVER_WORKSPACE_NAME="my-workspace"
 % scalingo --app my-geoserver env-set GEOSERVER_DATASTORE_NAME="my-datastore"
+% scalingo --app my-geoserver env-set PROXY_BASE_URL_HEADERS=true
+% scalingo --app my-geoserver env-set PROXY_BASE_URL=<public URL of the geoserver instance>
 ```
 
 5. [Configure](#geoserver-configuration-does-not-persist) GeoServer
 
-6. Deploy:
+6. Create a `Procfile` with the following content at the root of your project:
+```yml
+# The bin/startup.sh script is bundled by the buildpack
+web: $HOME/bin/startup.sh
+```
+
+7. Deploy:
 
 ```bash
 % git push scalingo master
@@ -119,7 +127,7 @@ Defaults to being unset (auto-complete is disabled by default)
 #### `GEOSERVER_VERSION`
 
 Version of GeoServer to install.\
-Defaults to `2.21.1`
+Defaults to `2.28.5`
 
 #### `GEOSERVER_CONFIG_SCRIPT`
 
